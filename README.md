@@ -38,6 +38,7 @@ SKILL/
 | Domain | Skill | Purpose |
 |---|---|---|
 | `infrastructure` | `mx-space-remote-db-access` | Remote `mx-space` MongoDB inspection, guarded updates, and verification through `ssh -> docker exec -> mongosh` |
+| `infrastructure` | `mx-space-remote-translation-audit` | Remote `translation_entries` and `ai_translations` auditing, including coverage checks, runtime freshness interpretation, and route-level translation verification |
 
 ## Suggested Domains
 
