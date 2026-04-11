@@ -1,0 +1,49 @@
+# Working summary config
+# Copy to: ~/.config/working-summary/config.yaml
+# Override with --config <path>
+
+github:
+  # GitHub login. If omitted, resolved from `gh api user -q .login`.
+  user: innei
+
+  # Org slugs to expand into all member repos (incl. private) via REST API.
+  orgs:
+    - lobehub
+    - lobehub-biz
+
+  # Optional extra repos outside the orgs above (repeatable).
+  repos:
+    - innei/next-real-comment
+    - mx-space/core
+
+  # Pull per-repo commit history for repos that had PR/issue activity.
+  # Set false on very large orgs to keep runs fast.
+  include_commits: true
+
+# Linear is optional. Requires `linear` CLI on PATH and `linear auth login`
+# to the target workspace. Disable by removing this block (or commenting it out).
+linear:
+  # Workspace slug — informational only; the active workspace comes from
+  # `linear auth default` / current credentials.
+  workspace: lobehub
+  # Team key (the short prefix on issue IDs, e.g. LOBE for LOBE-1234).
+  team: LOBE
+  # which cycle to read: "previous" | "current" | "auto"
+  # auto = pick the cycle whose dates overlap the computed range
+  cycle: auto
+  # Optional: filter by state name. Omit / leave empty for all non-canceled.
+  include_states:
+    - In Progress
+    - Done
+
+output:
+  format: markdown
+  # Language for the synthesized report prose. Section headers (e.g.
+  # "In Progress", "Features") and raw PR/issue/commit titles are kept
+  # verbatim regardless of this setting; only the human-written
+  # description text and framing prose follow `language`.
+  # Examples: zh-CN, en, ja
+  language: zh-CN
+  dir: ~/Documents/Obsidian/Reports
+  # Placeholders: {year} {month} {week} {start} {end}
+  filename: "{year}-{month}-w{week}.md"

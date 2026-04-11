@@ -35,20 +35,25 @@ SKILL/
 
 ## Current Skills
 
-| Domain | Skill | Purpose |
-|---|---|---|
-| `infrastructure` | `mx-space-remote-db-access` | Remote `mx-space` MongoDB inspection, guarded updates, and verification through `ssh -> docker exec -> mongosh` |
+
+| Domain           | Skill                               | Purpose                                                                                                                                                            |
+| ---------------- | ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `automation`     | `working-summary`                  | Work summary / 周报 from GitHub PRs/commits and optional Linear (or similar) trackers; markdown output for notes (e.g. Obsidian)                                   |
+| `infrastructure` | `mx-space-remote-db-access`         | Remote `mx-space` MongoDB inspection, guarded updates, and verification through `ssh -> docker exec -> mongosh`                                                    |
 | `infrastructure` | `mx-space-remote-translation-audit` | Remote `translation_entries` and `ai_translations` auditing, including coverage checks, runtime freshness interpretation, and route-level translation verification |
+
 
 ## Suggested Domains
 
-| Domain | Typical Content |
-|---|---|
-| `infrastructure` | deployment, servers, databases, containers, observability |
-| `automation` | repeated shell workflows, CLI procedures, scripting playbooks |
-| `writing` | structured writing, publishing, editorial workflows |
-| `research` | investigation methods, source-gathering patterns, analysis frameworks |
-| `content` | site-specific publishing, content operations, media handling |
+
+| Domain           | Typical Content                                                       |
+| ---------------- | --------------------------------------------------------------------- |
+| `infrastructure` | deployment, servers, databases, containers, observability             |
+| `automation`     | repeated shell workflows, CLI procedures, scripting playbooks         |
+| `writing`        | structured writing, publishing, editorial workflows                   |
+| `research`       | investigation methods, source-gathering patterns, analysis frameworks |
+| `content`        | site-specific publishing, content operations, media handling          |
+
 
 ## Adding a New Skill
 
@@ -62,3 +67,4 @@ SKILL/
 - Directory names should use lowercase kebab-case.
 - Skill `name` values should be stable and descriptive.
 - Prefer names that state both target and action, such as `mx-space-remote-db-access` or `article-publish-checklist`.
+

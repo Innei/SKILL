@@ -66,6 +66,61 @@ ssh -p "$SSH_PORT" "$SSH_USER@$SSH_HOST" \
   "docker exec '$MONGO_CONTAINER' mongosh 'mongodb://$MONGO_USER:$MONGO_PASSWORD@127.0.0.1:27017/$MONGO_DB?authSource=admin' --quiet --eval 'db.adminCommand({ ping: 1 })'"
 ```
 
+## Preferred Audit Script
+
+When the local `mx-core` repository is available, prefer the built-in audit script over ad hoc shell code.
+
+| Path | Purpose |
+|---|---|
+| `/Users/innei/git/innei-repo/mx-core/apps/core/scripts/check-ai-translation-hash.mjs` | Batch audit `ai_translations` against current `mx-core` hash and runtime freshness semantics |
+
+Use the package entrypoint:
+
+```bash
+cd /Users/innei/git/innei-repo/mx-core
+
+pnpm check:ai-translation-hash \
+  --uri '<mongo-uri>' \
+  --langs auto \
+  --visibility all
+```
+
+For machine-readable output:
+
+```bash
+cd /Users/innei/git/innei-repo/mx-core
+
+pnpm check:ai-translation-hash \
+  --uri '<mongo-uri>' \
+  --langs auto \
+  --visibility all \
+  --json
+```
+
+## Script Output Semantics
+
+Do not misread the script output.
+
+| Output section | Meaning |
+|---|---|
+| `missing` | language rows that do not exist in `ai_translations` |
+| `runtimeStale` | rows that `mx-core` would currently treat as stale |
+| `strictHashMismatch` | rows whose stored hash differs from a fresh recomputation, even if runtime still treats them as valid |
+| `taskPayloads` | actionable objects to regenerate, derived from `missing + runtimeStale` only |
+
+Interpret the summary with this rule:
+
+```text
+strictHashMismatch
+    !=
+runtimeStale
+```
+
+The script is intended to reflect both:
+
+- operational truth for remediation
+- strict hash drift for diagnosis
+
 ## Query Strategy
 
 Use `--eval` only for simple reads that do not contain Mongo operators beginning with `$`.
