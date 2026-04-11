@@ -1,7 +1,7 @@
 ---
 name: working-summary
 disable-model-invocation: true
-description: Use when the user asks for a work summary, weekly report, 工作总结, 周报, working summary, or sprint/period recap. Aggregates GitHub PR/commit/issue activity from configured repos, optionally reads Linear cycle issues via MCP, honors Chinese public holidays, and produces a markdown report. Default range is the previous Mon-Sun week.
+description: Use when the user asks for a work summary, weekly report, 工作总结，周报，working summary, or sprint/period recap. Aggregates GitHub PR/commit/issue activity from configured repos, optionally reads Linear cycle issues via MCP, honors Chinese public holidays, and produces a markdown report. Default range is the previous Mon-Sun week.
 ---
 
 # Working Summary
@@ -17,18 +17,18 @@ If the file is missing, tell the user to copy `config.example.yaml` (next to thi
 
 ```yaml
 github:
-  user: innei                 # optional; falls back to `gh api user -q .login`
-  orgs:                       # org-scope query — ONE gh search call per org
+  user: innei # optional; falls back to `gh api user -q .login`
+  orgs: # org-scope query — ONE gh search call per org
     - lobehub
     - lobehub-biz
-  repos:                      # optional explicit repos (in addition to orgs)
+  repos: # optional explicit repos (in addition to orgs)
     - innei/next-real-comment
     - mx-space/core
-  include_commits: true       # pull per-repo commits for active repos
-linear:                       # optional, needs `linear` CLI authed
-  workspace: lobehub          # informational
-  team: LOBE                  # team key (issue prefix)
-  cycle: auto                 # previous | current | auto
+  include_commits: true # pull per-repo commits for active repos
+linear: # optional, needs `linear` CLI authed
+  workspace: lobehub # informational
+  team: LOBE # team key (issue prefix)
+  cycle: auto # previous | current | auto
   include_states: [In Progress, Done]
 output:
   # Language for synthesized prose. Section headers and raw PR/issue/commit
@@ -39,7 +39,7 @@ output:
   # report to `dir` at the end of a run. Leave unset to operate ephemerally.
   dir: ~/Documents/Obsidian/Reports
   # Placeholders: {year} {month} {week} {start} {end} {ext}
-  filename: "{year}-{month}-w{week}.{ext}"
+  filename: '{year}-{month}-w{week}.{ext}'
 ```
 
 ## Output Flow
@@ -50,12 +50,12 @@ whether to persist the result.
 
 At the end of synthesis, prompt the user with these options:
 
-| Choice | Behavior |
-|---|---|
-| `no` / nothing | Done. Report lives only in the conversation. |
-| `md` | Write markdown to `output.dir/{filename}` (ext=`md`). |
-| `html` | Render themed HTML to `$TMPDIR/working-summary-<stamp>.html` via `scripts/render_html.py`, run `open` on it, then ask whether to also move a copy to `output.dir/{filename}` (ext=`html`). |
-| `both` | Do `md` and `html` in that order. |
+| Choice         | Behavior                                                                                                                                                                                   |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `no` / nothing | Done. Report lives only in the conversation.                                                                                                                                               |
+| `md`           | Write markdown to `output.dir/{filename}` (ext=`md`).                                                                                                                                      |
+| `html`         | Render themed HTML to `$TMPDIR/working-summary-<stamp>.html` via `scripts/render_html.py`, run `open` on it, then ask whether to also move a copy to `output.dir/{filename}` (ext=`html`). |
+| `both`         | Do `md` and `html` in that order.                                                                                                                                                          |
 
 **Default choice from config**: when `output.format` is set in the config
 file, use it as the **highlighted default** in the prompt (e.g.
@@ -74,11 +74,11 @@ user (append, overwrite, or new suffix).
 
 The skill uses a **previous Mon–Sun week** as the default:
 
-| Today is | Range |
-|---|---|
-| Mon | `[last Mon, yesterday Sun]` |
-| Tue..Sat | `[prev Mon, prev Sun]` |
-| Sun | `[prev Mon, prev Sun]` (not this Sun) |
+| Today is | Range                                 |
+| -------- | ------------------------------------- |
+| Mon      | `[last Mon, yesterday Sun]`           |
+| Tue..Sat | `[prev Mon, prev Sun]`                |
+| Sun      | `[prev Mon, prev Sun]` (not this Sun) |
 
 Explicit overrides:
 
@@ -142,6 +142,7 @@ When `config.linear.team` is set, `collect.py` invokes `scripts/fetch_linear.py`
 4. Each issue carries `attachments` — GitHub PR/commit URLs are exposed there, enabling PR ↔ issue linking without text matching.
 
 The script returns `null` (silent) when:
+
 - the `linear` binary is missing,
 - the user is not authenticated,
 - the cycle cannot be resolved.
@@ -211,7 +212,7 @@ So even when `language: zh-CN`, a Highlights bullet looks like:
 
 The prose half is 中文; the backtick-quoted raw title and the link text stay English (or whatever the original PR author wrote).
 
-The synthesized language applies to descriptions even when the **PR body** is in a different language — the description is *your* paraphrase, written in `output.language`, distilled from the body.
+The synthesized language applies to descriptions even when the **PR body** is in a different language — the description is _your_ paraphrase, written in `output.language`, distilled from the body.
 
 ### Sections
 
@@ -222,7 +223,7 @@ The synthesized language applies to descriptions even when the **PR body** is in
    - <readable one-sentence description in PR-author's language> — `<raw PR title>` [<repo>#<num>](url)
    ```
 
-   The readable description is **synthesized from the PR body** (`prs_merged[].body` is included for this purpose). It explains *what was done and why*, in plain prose. The raw title + link follow as traceability — never omit them. Commits without a PR ref get the same treatment but link to the commit URL.
+   The readable description is **synthesized from the PR body** (`prs_merged[].body` is included for this purpose). It explains _what was done and why_, in plain prose. The raw title + link follow as traceability — never omit them. Commits without a PR ref get the same treatment but link to the commit URL.
 
 3. **二、仓库汇总** (Per-Repo Breakdown) — Same items regrouped by repository. Use compact one-line bullets here (no need to repeat the full readable description) since the global overview already carries the prose.
 
@@ -300,7 +301,7 @@ scripts/render_html.py \
      them as a meta-grid and a shipped callout
    - drop stray top-level `<hr>`
    - convert `> [!kind]` blockquotes into `.callout.<kind>` divs
-   - wrap each repo `<h3>` inside the 「仓库汇总」section in `<details>`
+   - wrap each repo `<h3>` inside the「仓库汇总」section in `<details>`
      (first open) with a `copy` button; the `*(N commits)*` suffix
      becomes the right-aligned count badge
    - wrap each `<h2>` + its following siblings in `<section id=slug>`
@@ -318,7 +319,7 @@ scripts/render_html.py \
 4. Output is a single self-contained HTML file — no external assets.
 
 **Degradation**: if the markdown lacks the expected header paragraphs or
-the 「仓库汇总」section, the script still renders a plain themed page
+the「仓库汇总」section, the script still renders a plain themed page
 without the meta grid or collapsible repo blocks. It never raises.
 
 ## After the report

@@ -39,6 +39,7 @@ SKILL/
 | Domain           | Skill                               | Purpose                                                                                                                                                            |
 | ---------------- | ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `automation`     | `working-summary`                  | Work summary / 周报 from GitHub PRs/commits and optional Linear (or similar) trackers; markdown output for notes (e.g. Obsidian)                                   |
+| `writing`        | `generate-design-md`               | Produce `DESIGN.md` for a brand/site from live CSS and tokens (awesome-design-md format)                                                                           |
 | `infrastructure` | `mx-space-remote-db-access`         | Remote `mx-space` MongoDB inspection, guarded updates, and verification through `ssh -> docker exec -> mongosh`                                                    |
 | `infrastructure` | `mx-space-remote-translation-audit` | Remote `translation_entries` and `ai_translations` auditing, including coverage checks, runtime freshness interpretation, and route-level translation verification |
 
