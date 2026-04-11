@@ -1,8 +1,12 @@
 ---
 name: generate-design-md
-description: Use when the user wants a DESIGN.md (awesome-design-md format) from a brand name or site URL.
+description: >
+  Generate a DESIGN.md file for any brand or website by analyzing its visual design system.
+  Use when the user asks to "generate a DESIGN.md for [brand/URL]", "create a design system doc for [site]",
+  "extract the design tokens from [URL]", or "make a DESIGN.md like [brand]".
+  Triggers on any request to document a website's design language in DESIGN.md format.
 metadata:
-  version: "1.0.0"
+  version: '1.0.0'
 argument-hint: <brand-name-or-url>
 ---
 
@@ -112,16 +116,18 @@ design characteristics.
 
 ## Format Reference
 
-Study the spec from the TEMPLATE.md in the awesome-design-md repo if available, or follow
+Study the spec from the `./TEMPLATE.md` if available, or follow
 these non-negotiable format rules:
 
 ### Color entries
+
 ```
 - **Name** (`#XXXXXX`): CSS variable if known. 1-sentence role.
 - **Name** (`rgba(R,G,B,A)`): Role description.
 ```
 
 ### Typography table columns (in order)
+
 `Role | Font | Size | Weight | Line Height | Letter Spacing | Notes`
 
 - Size: always `Xpx (X.XXrem)`
@@ -130,6 +136,7 @@ these non-negotiable format rules:
 - Letter Spacing: `normal` or `−X.XXpx`
 
 ### Elevation table columns (in order)
+
 `Level | Treatment | Use`
 
 - Treatment for Level 1+: full CSS `box-shadow` value, e.g.
@@ -137,7 +144,9 @@ these non-negotiable format rules:
 - Always end with: `Focus (Accessibility) | 2px solid #XXXXXX outline | Keyboard focus`
 
 ### Component button sub-sections
+
 Use bold text as the variant heading — NOT a `###` heading:
+
 ```
 **Primary Blue**
 - Background: `#XXXXXX`
@@ -146,11 +155,14 @@ Use bold text as the variant heading — NOT a `###` heading:
 ```
 
 ### Agent Prompt Guide — Example Component Prompts
+
 Every prompt must be a single quoted string with ALL values inline:
+
 ```
 - "Create a hero section on white background. Headline at 48px Geist weight 600,
    line-height 1.00, letter-spacing -2.4px, color #171717..."
 ```
+
 No cross-references like "use the brand purple from Section 2". All values must be explicit.
 
 ---
