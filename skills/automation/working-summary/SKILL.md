@@ -31,10 +31,44 @@ linear:                       # optional, needs `linear` CLI authed
   cycle: auto                 # previous | current | auto
   include_states: [In Progress, Done]
 output:
-  format: markdown
+  # Language for synthesized prose. Section headers and raw PR/issue/commit
+  # titles are kept verbatim regardless; only descriptions and framing prose
+  # follow this setting. Examples: zh-CN, en, ja
+  language: zh-CN
+  # Optional persistence target. When set, the user may choose to save the
+  # report to `dir` at the end of a run. Leave unset to operate ephemerally.
   dir: ~/Documents/Obsidian/Reports
-  filename: "{year}-{month}-w{week}.md"
+  # Placeholders: {year} {month} {week} {start} {end} {ext}
+  filename: "{year}-{month}-w{week}.{ext}"
 ```
+
+## Output Flow
+
+The skill **never writes a file by default**. It synthesizes markdown in the
+conversation (which serves as the terminal display) and then asks the user
+whether to persist the result.
+
+At the end of synthesis, prompt the user with these options:
+
+| Choice | Behavior |
+|---|---|
+| `no` / nothing | Done. Report lives only in the conversation. |
+| `md` | Write markdown to `output.dir/{filename}` (ext=`md`). |
+| `html` | Render themed HTML to `$TMPDIR/working-summary-<stamp>.html` via `scripts/render_html.py`, run `open` on it, then ask whether to also move a copy to `output.dir/{filename}` (ext=`html`). |
+| `both` | Do `md` and `html` in that order. |
+
+**Default choice from config**: when `output.format` is set in the config
+file, use it as the **highlighted default** in the prompt (e.g.
+`format: html` → "落盘否？[**html** / md / both / no]"). The user can still
+override by typing another choice. When `output.format` is unset or is
+`markdown`, highlight `md` as default. When `output.format` is `both`,
+highlight `both`.
+
+The HTML renderer is a deterministic post-processor — the LLM only ever
+produces markdown. See **HTML Rendering** below.
+
+Never overwrite an existing file silently. If the target exists, ask the
+user (append, overwrite, or new suffix).
 
 ## Default Time Range
 
@@ -212,18 +246,80 @@ Match a merged PR to a Linear issue when:
 
 Flag any merged PR with **no** Linear match as an untracked item.
 
-## Output File
+## Persistence Targets
 
-If `output.dir` is set, write the markdown report to:
-`{output.dir}/{filename-template-expanded}`
-
-Expand placeholders from the computed range:
+When the user opts to persist (see **Output Flow** above), expand placeholders
+from the computed range before constructing the filename:
 
 - `{year}` / `{month}` — from `range.end`
 - `{week}` — ISO week number of `range.end`
 - `{start}` / `{end}` — `YYYY-MM-DD`
+- `{ext}` — `md` or `html` depending on the chosen format
 
-Never overwrite an existing file silently — if present, ask the user (append, overwrite, or new suffix).
+Targets:
+
+- **markdown** → `{output.dir}/{filename}` (ext=`md`)
+- **html temporary** → `$TMPDIR/working-summary-{start}-{end}.html` then `open` it
+- **html permanent** (optional follow-up) → `{output.dir}/{filename}` (ext=`html`)
+
+Never overwrite an existing file silently — if present, ask the user
+(append, overwrite, or new suffix).
+
+## HTML Rendering
+
+HTML is produced **deterministically** by `scripts/render_html.py`, not by
+the LLM. This keeps token cost low and the visual theme consistent across
+runs.
+
+```bash
+scripts/render_html.py \
+  --markdown <md-file | -> \
+  [--json collected.json] \
+  [--lang zh-CN] \
+  [--title "2026-W14"] \
+  [--user innei] [--host reports] \
+  -o <out.html | ->
+```
+
+**Inputs**
+
+- `--markdown` (required) — the synthesized markdown report. Pass `-` to
+  read from stdin. The script extracts `<h1>` as report title and parses
+  the header paragraph (`**周期**` / `**作者**` / `**仓库**`) plus the
+  leading blockquote for the summary callout.
+- `--json` (optional) — `collect.py` JSON output. When provided, meta grid
+  and activity-heat stats are computed from structured data instead of
+  scraping the markdown. Prefer this when available.
+
+**What the script does**
+
+1. `markdown-it-py` converts the report body to HTML fragment.
+2. BeautifulSoup post-process passes:
+   - extract h1 → typewriter header
+   - peel off header metadata `<p>` + summary `<blockquote>` and render
+     them as a meta-grid and a shipped callout
+   - drop stray top-level `<hr>`
+   - convert `> [!kind]` blockquotes into `.callout.<kind>` divs
+   - wrap each repo `<h3>` inside the 「仓库汇总」section in `<details>`
+     (first open) with a `copy` button; the `*(N commits)*` suffix
+     becomes the right-aligned count badge
+   - wrap each `<h2>` + its following siblings in `<section id=slug>`
+   - scan every `<li>` for a conventional-commit prefix in any `<code>`
+     descendant (`feat|fix|refactor|perf|build|ci|chore|docs|test|style|revert`)
+     and prepend a colored `.tag` span
+   - assign slug ids to section h3 headings so the sidebar TOC can
+     link to sub-items
+3. The shell (CSS + HTML + JS) lives in
+   `scripts/templates/report.html` and is filled via `string.Template`.
+   It honors `prefers-color-scheme` (dark by default, light on light
+   systems) and includes a dedicated `@media print` theme that switches
+   to black-on-white, hides the sidebar/toolbar, expands every `<details>`,
+   and appends `(url)` to anchors for print traceability.
+4. Output is a single self-contained HTML file — no external assets.
+
+**Degradation**: if the markdown lacks the expected header paragraphs or
+the 「仓库汇总」section, the script still renders a plain themed page
+without the meta grid or collapsible repo blocks. It never raises.
 
 ## After the report
 
@@ -241,10 +337,11 @@ Offer — and **wait for explicit confirmation** — before any write action:
 - `scripts/fetch_github.py --author innei --org lobehub --org lobehub-biz --from 2026-03-30 --to 2026-04-05` — expand both orgs, full pipeline.
 - `scripts/fetch_github.py ... --no-commits` — skip commit + merged-PR reconstruction; only open PRs / issues on explicit repos.
 - `scripts/fetch_linear.py --team LOBE --cycle auto --from 2026-03-30 --to 2026-04-05` — Linear-only fetch, useful for debugging cycle resolution.
+- `scripts/render_html.py --markdown report.md -o /tmp/out.html` — render a standalone markdown file into themed HTML. Add `--json collected.json` to enrich the meta grid and stats.
 
 ## Dependencies
 
 - `gh` CLI, authenticated (`gh auth status`)
-- `uv` (for `collect.py` and `compute_range.py` shebangs — installs `pyyaml` + `chinesecalendar` on first run)
+- `uv` (for script shebangs — `collect.py` pulls `pyyaml` + `chinesecalendar`, `render_html.py` pulls `markdown-it-py` + `beautifulsoup4` on first run)
 - `linear` CLI, authenticated (`linear auth login`) — only required if `config.linear` is set
 - Make scripts executable once: `chmod +x skills/automation/working-summary/scripts/*.py`

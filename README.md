@@ -55,12 +55,30 @@ SKILL/
 | `content`        | site-specific publishing, content operations, media handling          |
 
 
+## Agent Integration
+
+Skills are loaded by Copilot CLI (`.agent/`) and Claude Code (`.claude/`) via **flat symlinks** directly under their respective `skills/` directories. Each agent expects skills at exactly one level deep: `.agent/skills/<skill-name>/SKILL.md`.
+
+```text
+.agent/skills/
+└── <skill-name> -> ../../skills/<domain>/<skill-name>   ← flat symlink
+.claude/skills/
+└── <skill-name> -> ../../skills/<domain>/<skill-name>   ← flat symlink
+```
+
+> ⚠️ Do **not** symlink the entire `skills/` directory — agents will not discover nested subdirectories.
+
 ## Adding a New Skill
 
 1. Create a new directory under `skills/<domain>/<skill-name>/`.
 2. Copy `templates/SKILL.template.md` into that directory as `SKILL.md`.
 3. Fill in the frontmatter and keep the body concise.
 4. Add optional `references/`, `scripts/`, or `assets/` only when they materially improve reuse.
+5. Create flat symlinks in both `.agent/skills/` and `.claude/skills/`:
+   ```bash
+   ln -sf ../../skills/<domain>/<skill-name> .agent/skills/<skill-name>
+   ln -sf ../../skills/<domain>/<skill-name> .claude/skills/<skill-name>
+   ```
 
 ## Naming Guidance
 

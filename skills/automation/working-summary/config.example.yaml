@@ -37,13 +37,16 @@ linear:
     - Done
 
 output:
-  format: markdown
   # Language for the synthesized report prose. Section headers (e.g.
   # "In Progress", "Features") and raw PR/issue/commit titles are kept
   # verbatim regardless of this setting; only the human-written
   # description text and framing prose follow `language`.
   # Examples: zh-CN, en, ja
   language: zh-CN
+  # Optional. When set, the skill may persist the report here at the user's
+  # explicit request. Leave unset to run purely ephemerally (the report
+  # stays in the conversation and, for html, in $TMPDIR).
   dir: ~/Documents/Obsidian/Reports
-  # Placeholders: {year} {month} {week} {start} {end}
-  filename: "{year}-{month}-w{week}.md"
+  # Placeholders: {year} {month} {week} {start} {end} {ext}
+  # {ext} is `md` or `html` depending on the user's choice at end of run.
+  filename: "{year}-{month}-w{week}.{ext}"
