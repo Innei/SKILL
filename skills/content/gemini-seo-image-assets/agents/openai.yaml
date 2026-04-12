@@ -1,0 +1,4 @@
+interface:
+  display_name: "Gemini SEO Assets"
+  short_description: "Generate favicon and OG images with Gemini and wire SEO metadata"
+  default_prompt: "Use $gemini-seo-image-assets when a web project needs Gemini-generated favicon and OG assets plus matching SEO metadata wiring."
