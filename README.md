@@ -36,13 +36,14 @@ SKILL/
 ## Current Skills
 
 
-| Domain           | Skill                               | Purpose                                                                                                                                                            |
-| ---------------- | ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `automation`     | `working-summary`                  | Work summary / 周报 from GitHub PRs/commits and optional Linear (or similar) trackers; markdown output for notes (e.g. Obsidian)                                   |
-| `writing`        | `generate-design-md`               | Produce `DESIGN.md` for a brand/site from live CSS and tokens (awesome-design-md format)                                                                           |
-| `infrastructure` | `mx-space-remote-db-access`         | Remote `mx-space` MongoDB inspection, guarded updates, and verification through `ssh -> docker exec -> mongosh`                                                    |
-| `infrastructure` | `mx-space-remote-translation-audit` | Remote `translation_entries` and `ai_translations` auditing, including coverage checks, runtime freshness interpretation, and route-level translation verification |
-| `content`        | `gemini-seo-image-assets`          | Gemini or Google AI Studio generated favicon and OG base artwork, exported icon variants, and matching SEO metadata wiring                                       |
+| Domain           | Skill                                                                 | Purpose                                                                                                                                                            |
+| ---------------- | --------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `automation`     | [`working-summary`](skills/automation/working-summary/SKILL.md)       | Work summary / 周报 from GitHub PRs/commits and optional Linear (or similar) trackers; markdown output for notes (e.g. Obsidian)                                   |
+| `writing`        | [`generate-design-md`](skills/writing/generate-design-md/SKILL.md)   | Produce `DESIGN.md` for a brand/site from live CSS and tokens (awesome-design-md format)                                                                           |
+| `infrastructure` | [`mx-space-remote-db-access`](skills/infrastructure/mx-space-remote-db-access/SKILL.md) | Remote `mx-space` MongoDB inspection, guarded updates, and verification through `ssh -> docker exec -> mongosh`                                                    |
+| `infrastructure` | [`mx-space-remote-translation-audit`](skills/infrastructure/mx-space-remote-translation-audit/SKILL.md) | Remote `translation_entries` and `ai_translations` auditing, including coverage checks, runtime freshness interpretation, and route-level translation verification |
+| `content`        | [`gemini-seo-image-assets`](skills/content/gemini-seo-image-assets/SKILL.md) | Gemini or Google AI Studio generated favicon and OG base artwork, exported icon variants, and matching SEO metadata wiring                                       |
+| `content`        | [`acg-character-settei`](skills/content/acg-character-settei/SKILL.md) | Generate ACG character settei sheet (multi-view + expression + callouts) from a template image plus a single character reference, via Gemini image-to-image      |
 
 
 ## Suggested Domains
