@@ -110,6 +110,8 @@ alpha = np.where(bg_mask, 0, 255).astype(np.uint8)
 
 Interior white pixels (shirt, skin highlights) are enclosed by foreground and never reach the border — they stay opaque.
 
+**White clothing leak:** if the outline has 1–2 px gaps, the flood leaks through into white fabric. Fix: dilate dark outline pixels (`dist > OUTLINE_THRESH=150`) by `OUTLINE_DILATE=2` iterations before flood-fill to plug gaps.
+
 ## Retry Pattern
 
 Gemini 3 image models have three transient failure modes:
@@ -132,6 +134,7 @@ See `scripts/generate.py` for the full retry wrapper.
 | Hair color drifts across cells | Repeat exact color spec as first item in "character lock" |
 | `image.size` AttributeError | `part.as_image()` returns genai Image, not PIL; convert via `Image.open(io.BytesIO(img.image_bytes))` |
 | Adjacent sticker bleeds into cell | Gemini grid is uneven; use `_find_cuts()` white-profile detection, not `image_size // 4` |
+| White clothing becomes transparent | Outline gaps let flood reach fabric; set `OUTLINE_DILATE=2` to dilate outline before flood-fill |
 
 ## Verification
 

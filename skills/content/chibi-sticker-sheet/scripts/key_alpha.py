@@ -18,24 +18,38 @@ from pathlib import Path
 
 import numpy as np
 from PIL import Image, ImageFilter
-from scipy.ndimage import label
+from scipy.ndimage import binary_dilation, label
 
-WHITE_TOL = 28    # max per-channel delta from #fff to count as near-white
-FEATHER_PX = 1.2  # gaussian blur radius on alpha edge (px)
+WHITE_TOL = 28        # max per-channel delta from #fff to count as near-white
+OUTLINE_THRESH = 150  # min per-channel delta from #fff to count as outline (dark pixel)
+OUTLINE_DILATE = 2    # dilation iterations to close outline gaps before flood-fill
+FEATHER_PX = 1.2      # gaussian blur radius on alpha edge (px)
 ROWS, COLS = 4, 4
 
 
 def key_white_bg(img: Image.Image) -> Image.Image:
     """Return RGBA image with exterior white pixels made transparent.
 
-    Interior white pixels (shirt, skin highlights) are enclosed by foreground
-    and never touch the image border, so they remain opaque.
+    Problem: white clothing has the same dist-from-white as the background.
+    If the black outline has any 1-2 px gaps, a naive flood-fill leaks
+    through those gaps into white fabric, making the clothing transparent.
+
+    Fix: dilate the dark outline pixels (dist > OUTLINE_THRESH) before
+    flood-filling.  This plugs any sub-3-px gaps in the outline, so the
+    flood cannot cross the outline boundary into enclosed white areas.
     """
     rgb = np.asarray(img.convert("RGB"), dtype=np.int16)
     dist = np.max(np.abs(rgb - 255), axis=2)   # 0 = pure white
-    near_white = dist < WHITE_TOL
 
-    lbl, _ = label(near_white)
+    # Dilate outline to close tiny gaps (≤ OUTLINE_DILATE px)
+    outline = dist > OUTLINE_THRESH
+    outline_closed = binary_dilation(outline, iterations=OUTLINE_DILATE)
+
+    # Flood candidates: near-white AND NOT blocked by thickened outline
+    near_white = dist < WHITE_TOL
+    flood_candidates = near_white & ~outline_closed
+
+    lbl, _ = label(flood_candidates)
     edge_ids: set[int] = set()
     for edge in (lbl[0, :], lbl[-1, :], lbl[:, 0], lbl[:, -1]):
         edge_ids.update(edge.tolist())
