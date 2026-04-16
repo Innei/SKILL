@@ -75,6 +75,48 @@ Character lock (must match in every single cell):
 - **Style vocabulary that works:** `super-deformed 2-head ratio` · `thick uniform bold black ink outline` · `flat cel shading` · `mochi chibi` · `large round pink cheek blush dots`
 - **Character attributes to lock:** hair color, hair length/style, ALL accessories (花饰 must name species: `pink cherry blossom sakura flower hair ornament`), eye color, every garment piece.
 
+### Expression Diversity Rules
+
+Gemini tends to reuse the same pose for cells that share a column, especially **cells 9 and 13** (column-1 of rows 3–4). Prevent duplicates:
+
+1. **Span all six emotional axes** across the 16 slots — no axis should appear more than 3 times:
+
+   | Axis | Example actions |
+   |---|---|
+   | Joy / excitement | raised fist, jumping, sparkle eyes |
+   | Sadness / crying | waterfall tears, wilting head, tissues |
+   | Anger / frustration | puffed cheeks, steam from head, finger-point |
+   | Surprise / shock | wide-O mouth, hands-on-cheeks, dropped jaw |
+   | Shy / embarrassed | hands over red face, hiding behind sleeves |
+   | Calm / smug | arms crossed, side-eye, tea-sipping |
+
+2. **Assign a distinct body verb to every cell.** If two cells share the same verb (e.g., both "crying"), Gemini collapses them. Make verbs orthogonal: `waterfall-tears arms-spread` ≠ `single-teardrop hands-clasped`.
+
+3. **Cells 9 and 13 must differ in both emotion axis AND body posture.** Write them side by side before finalising the list and check they are visually distinguishable.
+
+4. **Vary facing direction and limb action across rows.** Cells in the same column naturally echo each other; counteract by alternating pose direction (facing left vs. right) or prop presence.
+
+**Reference 16-slot layout (copy and customize):**
+
+```
+1.  arms raised, jumping for joy, sparkle eyes
+2.  waterfall tears streaming, arms limp at sides
+3.  puffed cheeks, steam wisps from head, fists clenched
+4.  wide-O mouth shock, both hands on cheeks Home-Alone pose
+5.  smug smile, arms crossed, eyes half-lidded
+6.  shy embarrassment, hands pressed together, deep blush
+7.  thumbs-up grin, winking one eye
+8.  single teardrop rolling, trembling lip, hands clasped
+9.  hyper-excited wave, leaning forward, mouth wide open    ← must differ from #13
+10. exhausted slumped, sweat drop, drooping eyes
+11. index finger raised, lecture pose, tiny smile
+12. heart eyes, both hands framing face, rosy cheeks
+13. angry stomp, foot raised, fist shaking at sky           ← must differ from #9
+14. sleeping ZZZ, head tilted, eyes closed
+15. nervous laugh, hand behind head, eye twitch
+16. victory peace-sign, tongue out, confetti burst
+```
+
 ## Grid Slicing: Auto-Detect Boundaries
 
 Gemini does **not** divide the canvas into equal 512×512 cells. Row/column heights vary (e.g., top row 550px vs. bottom row 480px). Hard `image_size / 4` cuts cause sticker overflow into adjacent cells.
@@ -130,11 +172,38 @@ See `scripts/generate.py` for the full retry wrapper.
 |---|---|
 | Vague accessories (`red ribbon`) | Spell out species/shape (`pink sakura flower, 5 petals`) |
 | Uniform expressions (all sad-variants) | Mix action verbs: raised fist, palm-push, tilted head, waterfall tears, thumbs-up |
+| Cells 9 and 13 look identical | They share column-1; assign different emotion axis **and** body posture to each — see Expression Diversity Rules |
 | Grid lines appear in output | Add `seamless pure white, no grid lines, no cell borders` to prompt |
 | Hair color drifts across cells | Repeat exact color spec as first item in "character lock" |
 | `image.size` AttributeError | `part.as_image()` returns genai Image, not PIL; convert via `Image.open(io.BytesIO(img.image_bytes))` |
 | Adjacent sticker bleeds into cell | Gemini grid is uneven; use `_find_cuts()` white-profile detection, not `image_size // 4` |
 | White clothing becomes transparent | Outline gaps let flood reach fabric; set `OUTLINE_DILATE=2` to dilate outline before flood-fill |
+
+## WeChat Submission Extras
+
+Each sticker set needs three additional assets. Generate with `scripts/generate_extras.py`:
+
+```bash
+uv run generate_extras.py <sticker_dir> <char_ref_image> "<theme hint>"
+```
+
+| Asset | Spec | How produced |
+|---|---|---|
+| `banner.png` | 750×400 PNG, colorful bg, no text | Gemini image-to-image, 16:9 → center-crop |
+| `cover.png` | 240×240 transparent PNG, half/full body | Cell 07 (thumbs-up) resized with PIL |
+| `icon.png` | 50×50 transparent PNG, head shot | Cell 07 full cell resized (no crop — chibi proportions fit naturally) |
+
+**Theme hints by set:**
+- Snow/winter → `"snowy winter wonderland"`
+- Autumn ginkgo → `"golden autumn ginkgo forest"`
+- Summer sailor → `"sunny summer beach ocean waves"`
+- Spring school → `"cherry blossom spring school campus"`
+- Kimono/plum → `"red plum blossom Japanese garden"`
+
+**WeChat rules:**
+- Banner: colorful background only — no white, no transparent; no text; story-rich scene
+- Cover: transparent bg; no white outline; avoid over-cropping (half/full body preferred)
+- Icon: transparent bg; head-only, no square border; must differ across sets
 
 ## Verification
 
