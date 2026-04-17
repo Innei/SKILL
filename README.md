@@ -44,7 +44,7 @@ SKILL/
 | `infrastructure` | [`mx-space-remote-translation-audit`](skills/infrastructure/mx-space-remote-translation-audit/SKILL.md) | Remote `translation_entries` and `ai_translations` auditing, including coverage checks, runtime freshness interpretation, and route-level translation verification |
 | `content`        | [`gemini-seo-image-assets`](skills/content/gemini-seo-image-assets/SKILL.md) | Gemini or Google AI Studio generated favicon and OG base artwork, exported icon variants, and matching SEO metadata wiring                                       |
 | `content`        | [`acg-character-settei`](skills/content/acg-character-settei/SKILL.md) | Generate ACG character settei sheet (multi-view + expression + callouts) from a template image plus a single character reference, via Gemini image-to-image      |
-| `content`        | [`chibi-sticker-sheet`](skills/content/chibi-sticker-sheet/SKILL.md) | Generate a LINE/WeChat-style 4×4 chibi sticker sheet from a character reference via Gemini, with edge flood-fill alpha keying and 1:1 cell slicing               |
+| `content`        | [`chibi-sticker-sheet`](skills/content/chibi-sticker-sheet/SKILL.md) | Generate a LINE/WeChat-style 4×8 chibi sticker sheet (32 stickers) from a character reference via Gemini, with cross-sheet consistency control, edge flood-fill alpha keying and 1:1 cell slicing |
 
 
 ## Suggested Domains

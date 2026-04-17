@@ -131,10 +131,14 @@ def make_icon(cell: Image.Image) -> Image.Image:
 
 
 def _pick_cover_cell(cells_dir: Path) -> Path:
-    """Pick cell 07 (thumbs-up/wink) as the most recognisable; fall back to first."""
-    candidate = cells_dir / "07.png"
-    if candidate.exists():
-        return candidate
+    """Pick a recognisable cell for cover/icon.
+
+    Priority: thumbs_up_wink.png > 07.png > first cell alphabetically.
+    """
+    for name in ("thumbs_up_wink.png", "07.png"):
+        candidate = cells_dir / name
+        if candidate.exists():
+            return candidate
     candidates = sorted(cells_dir.glob("*.png"))
     if not candidates:
         raise FileNotFoundError(f"No cells found in {cells_dir}")

@@ -24,7 +24,7 @@ WHITE_TOL = 28        # max per-channel delta from #fff to count as near-white
 OUTLINE_THRESH = 150  # min per-channel delta from #fff to count as outline (dark pixel)
 OUTLINE_DILATE = 2    # dilation iterations to close outline gaps before flood-fill
 FEATHER_PX = 1.2      # gaussian blur radius on alpha edge (px)
-ROWS, COLS = 4, 4
+ROWS, COLS = 4, 4  # defaults; overridden by --rows / --cols CLI args
 
 
 def key_white_bg(img: Image.Image) -> Image.Image:
@@ -169,10 +169,28 @@ def slice_grid(
 
 
 def main() -> None:
-    src_path = Path(sys.argv[1]) if len(sys.argv) > 1 else Path("sheet_white.png")
-    out_dir = Path(sys.argv[2]) if len(sys.argv) > 2 else src_path.parent
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Alpha-key and slice a sticker sheet.")
+    parser.add_argument("src", nargs="?", default="sheet_white.png")
+    parser.add_argument("out_dir", nargs="?", default=None)
+    parser.add_argument("--rows", type=int, default=ROWS)
+    parser.add_argument("--cols", type=int, default=COLS)
+    parser.add_argument("--names", default=None,
+                        help="Text file with one expression name per line (snake_case); "
+                             "used as cell filenames instead of 01, 02 …")
+    args = parser.parse_args()
+
+    src_path = Path(args.src)
+    out_dir = Path(args.out_dir) if args.out_dir else src_path.parent
     cells_dir = out_dir / "cells"
     cells_dir.mkdir(parents=True, exist_ok=True)
+
+    rows, cols = args.rows, args.cols
+    names: list[str] | None = None
+    if args.names:
+        raw = Path(args.names).read_text(encoding="utf-8").splitlines()
+        names = [ln.strip() for ln in raw if ln.strip()]
 
     src = Image.open(src_path)
     print(f"source: {src_path.name} {src.size}")
@@ -183,9 +201,13 @@ def main() -> None:
     a = np.asarray(rgba)[..., 3]
     print(f"alpha: transparent%={(a < 10).mean() * 100:.1f}  -> {out_path.name}")
 
-    for i, cell in enumerate(slice_grid(rgba, src_rgb=src)):
-        cell.save(cells_dir / f"{i + 1:02d}.png")
-    print(f"sliced {ROWS * COLS} cells ({cells_dir})")
+    for i, cell in enumerate(slice_grid(rgba, src_rgb=src, rows=rows, cols=cols)):
+        if names and i < len(names):
+            fname = f"{names[i]}.png"
+        else:
+            fname = f"{i + 1:02d}.png"
+        cell.save(cells_dir / fname)
+    print(f"sliced {rows * cols} cells ({cells_dir})")
 
 
 if __name__ == "__main__":

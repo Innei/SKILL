@@ -1,15 +1,15 @@
 ---
 name: chibi-sticker-sheet
-description: Use when generating a LINE/WeChat-style chibi sticker sheet (4x4 grid, 16 expressions) from an anime character reference image via Gemini, including transparent PNG output and individual cell slicing.
+description: Use when generating a LINE/WeChat-style chibi sticker sheet (4x8 grid, 32 expressions) from an anime character reference image via Gemini, including transparent PNG output and individual cell slicing.
 ---
 
 # Chibi Sticker Sheet
 
-Generate a 4×4 chibi sticker sheet from a character reference image with Gemini, then key out the white background and slice into 16 individual transparent PNGs.
+Generate a 4×8 chibi sticker sheet from a character reference image with Gemini, then key out the white background and slice into 32 individual transparent PNGs.
 
 ## Scope
 
-- Input: 1 character reference PNG + a list of 16 expressions
+- Input: 1 character reference PNG + a list of 32 expressions
 - Output: `sheet_white.png`, `sheet_transparent.png`, `cells/*.png` (512×512 each)
 - Requires: `GOOGLE_AI_STUDIO_API_KEY`, Python + `uv`, model `gemini-3.1-flash-image-preview`
 - Not covered: per-cell text overlays; use PIL `ImageDraw` post-hoc for captions
@@ -23,28 +23,36 @@ The natural "white bg + black bg → α extraction" requires pixel-aligned foreg
 | Variable | Meaning |
 |---|---|
 | `CHAR_REF` | Absolute path to character reference PNG |
-| `EXPRESSIONS` | List of 16 strings, action-first (e.g. `"waterfall tears streaming down both cheeks"`) |
+| `EXPRESSIONS` | List of 32 strings, action-first (e.g. `"waterfall tears streaming down both cheeks"`) |
 | `OUT_DIR` | Output directory |
 
 ## Workflow
 
 ```text
-[1] Generate white-bg 4×4 sheet
+[1] Generate white-bg 4×8 sheet (two Gemini calls, each 4×4)
       -> gemini-3.1-flash-image-preview, image-to-image with CHAR_REF
-      -> save sheet_white.png
+      -> Call A: expressions 1–16  -> sheet_white_a.png
+      -> Call B: expressions 17–32 -> sheet_white_b.png
+      -> Stitch A and B vertically -> sheet_white.png
 
 [2] Key out background
       -> scripts/key_alpha.py: edge flood-fill via scipy.ndimage.label
       -> save sheet_transparent.png
 
-[3] Slice 4×4 grid
+[3] Slice 4×8 grid
       -> scripts/key_alpha.py: min(cw, ch) square crop, centered per cell
-      -> save cells/01_*.png … cells/16_*.png (512×512)
+      -> save cells/01_*.png … cells/32_*.png (512×512)
 ```
+
+### Why Two Calls
+
+Gemini's image output resolution caps around 1024×1024. A single 4×8 canvas would squash each cell to ~128×256px — too small for clean chibi art. Generating two 4×4 sheets and stitching keeps per-cell resolution at the same quality as 16-sticker sets.
 
 ## Prompt Structure
 
-**One call, image-to-image with character reference.**
+**Two calls (Call A: expressions 1–16, Call B: expressions 17–32), each image-to-image with the same character reference.**
+
+Use identical art-style and character-lock text for both calls to ensure visual consistency.
 
 ```
 Generate a 4x4 grid sticker sheet of 16 chibi stickers of the same character
@@ -66,6 +74,22 @@ Character lock (must match in every single cell):
 16. <action-first description>
 ```
 
+Run the same prompt template a second time with expressions 17–32 substituted in. Then stitch:
+
+```python
+from PIL import Image
+
+a = Image.open("sheet_white_a.png")
+b = Image.open("sheet_white_b.png")
+# Resize b to match a's width if they differ (Gemini output dims can vary)
+if b.width != a.width:
+    b = b.resize((a.width, int(b.height * a.width / b.width)), Image.LANCZOS)
+combined = Image.new("RGB", (a.width, a.height + b.height), (255, 255, 255))
+combined.paste(a, (0, 0))
+combined.paste(b, (0, a.height))
+combined.save("sheet_white.png")
+```
+
 ### Prompting Rules
 
 - **Lock first, change second.** Open with "Character lock" before anything changes.
@@ -77,9 +101,9 @@ Character lock (must match in every single cell):
 
 ### Expression Diversity Rules
 
-Gemini tends to reuse the same pose for cells that share a column, especially **cells 9 and 13** (column-1 of rows 3–4). Prevent duplicates:
+Gemini tends to reuse the same pose for cells that share a column, especially **cells 9 and 13** (column-1 of rows 3–4) and the equivalent pairs in the second sheet (**25 and 29**). Prevent duplicates:
 
-1. **Span all six emotional axes** across the 16 slots — no axis should appear more than 3 times:
+1. **Span all six emotional axes** across the 32 slots — no axis should appear more than 6 times:
 
    | Axis | Example actions |
    |---|---|
@@ -92,12 +116,15 @@ Gemini tends to reuse the same pose for cells that share a column, especially **
 
 2. **Assign a distinct body verb to every cell.** If two cells share the same verb (e.g., both "crying"), Gemini collapses them. Make verbs orthogonal: `waterfall-tears arms-spread` ≠ `single-teardrop hands-clasped`.
 
-3. **Cells 9 and 13 must differ in both emotion axis AND body posture.** Write them side by side before finalising the list and check they are visually distinguishable.
+3. **Critical column-1 pairs: 9 & 13, and 25 & 29 must each differ in both emotion axis AND body posture.** Write each pair side by side before finalising and check they are visually distinguishable.
 
 4. **Vary facing direction and limb action across rows.** Cells in the same column naturally echo each other; counteract by alternating pose direction (facing left vs. right) or prop presence.
 
-**Reference 16-slot layout (copy and customize):**
+5. **No expression from Call A (1–16) should be repeated in Call B (17–32).** Cross-check verbs before submitting the second prompt.
 
+**Reference 32-slot layout (copy and customize):**
+
+Call A (sheet 1, expressions 1–16):
 ```
 1.  arms raised, jumping for joy, sparkle eyes
 2.  waterfall tears streaming, arms limp at sides
@@ -117,9 +144,31 @@ Gemini tends to reuse the same pose for cells that share a column, especially **
 16. victory peace-sign, tongue out, confetti burst
 ```
 
+Call B (sheet 2, expressions 17–32):
+```
+17. cheering both fists raised, eyes glittering, mouth wide
+18. sobbing face buried in hands, shoulders shaking
+19. furious vein-pop, pointing finger, leaning in
+20. startled leap, arms flailing outward, pupils tiny
+21. lovesick float, dreamy spiral eyes, hearts around head
+22. pouty sulk, arms crossed, cheeks puffed, eyes averted
+23. excited run, legs spinning wheel, sweat drops flying
+24. relieved sigh, hand on chest, eyes closed in relief
+25. cheerful skip, one leg up, waving hello              ← must differ from #29
+26. defeated head-desk slump, tiny sweat rivers
+27. determined fist-pump, one eye closed, cape flutter
+28. panicked sprint, eyes wide, papers scattering
+29. grumpy arms-crossed side-eye, tapping foot impatiently ← must differ from #25
+30. yawning stretch, arms out, eyes teary from yawn
+31. embarrassed covering ears, blushing furiously, hunched
+32. triumphant pose, foot on imaginary podium, sparkle burst
+```
+
 ## Grid Slicing: Auto-Detect Boundaries
 
-Gemini does **not** divide the canvas into equal 512×512 cells. Row/column heights vary (e.g., top row 550px vs. bottom row 480px). Hard `image_size / 4` cuts cause sticker overflow into adjacent cells.
+Gemini does **not** divide the canvas into equal cells. Row/column heights vary (e.g., top row 550px vs. bottom row 480px). Hard `image_size / 4` cuts cause sticker overflow into adjacent cells.
+
+After stitching the two 4×4 sheets into one 4×8 canvas, run `_find_cuts()` on the combined image. Pass `n_rows=8, n_cols=4`.
 
 **Fix:** compute per-row and per-column white-fraction profiles, find contiguous near-white runs (gap bands), take their midpoints as cut positions.
 
@@ -129,9 +178,10 @@ near_white = dist < WHITE_TOL
 row_profile = near_white.mean(axis=1)   # fraction of white per row
 col_profile = near_white.mean(axis=0)   # fraction of white per col
 # find runs where profile >= 0.98 → midpoints = cut positions
+# For 4×8: expect 7 row cuts + 3 col cuts
 ```
 
-If more gap bands than expected (thin intra-sticker white highlights), keep only the `n_cells-1` most spread-out midpoints. See `scripts/key_alpha.py: _find_cuts()`.
+If more gap bands than expected (thin intra-sticker white highlights), keep only the `n_cells-1` most spread-out midpoints. Cells are saved as `cells/01_*.png … cells/32_*.png` (512×512). See `scripts/key_alpha.py: _find_cuts()`.
 
 ## Alpha Keying: Edge Flood-Fill
 
@@ -165,6 +215,69 @@ Gemini 3 image models have three transient failure modes:
 | `resp.parts` is `None`, only text returned | Retry; tighten the lock clause |
 
 See `scripts/generate.py` for the full retry wrapper.
+
+## Cross-Sheet Consistency (32-sticker specific)
+
+Two separate Gemini calls will often produce slightly different rendering — brightness, line weight, palette temperature, or shading style may drift. Control it with the following steps:
+
+### 1. Lock the style prompt byte-for-byte
+
+Copy the exact art-style paragraph and character-lock paragraph from Call A into Call B without any edits. Even synonym substitutions (`circular` vs `round`) can shift Gemini's style.
+
+### 2. Submit Call B with the sheet_white_a.png as additional reference
+
+Pass `sheet_white_a.png` alongside `CHAR_REF` as the image input for Call B. Gemini will use it as a visual anchor. Example (google-generativeai SDK):
+
+```python
+parts = [
+    PIL_to_part(char_ref_img),
+    PIL_to_part(sheet_a_img),  # style anchor
+    types.Part(text=prompt_b),
+]
+```
+
+### 3. Post-process for brightness/contrast parity
+
+After stitching, compute the mean luminance of the top half (sheet A cells) and bottom half (sheet B cells). If they differ by more than 8 luma units, apply a `PIL.ImageEnhance.Brightness` correction to the dimmer half before writing `sheet_white.png`.
+
+```python
+from PIL import Image, ImageEnhance
+import numpy as np
+
+def mean_luma(img_crop):
+    arr = np.asarray(img_crop.convert("L")).astype(float)
+    return arr.mean()
+
+combined = Image.open("sheet_white.png")
+h = combined.height // 2
+luma_a = mean_luma(combined.crop((0, 0, combined.width, h)))
+luma_b = mean_luma(combined.crop((0, h, combined.width, combined.height)))
+if abs(luma_a - luma_b) > 8:
+    # brighten or darken the bottom half
+    factor = luma_a / luma_b
+    bottom = combined.crop((0, h, combined.width, combined.height))
+    bottom = ImageEnhance.Brightness(bottom).enhance(factor)
+    combined.paste(bottom, (0, h))
+    combined.save("sheet_white.png")
+```
+
+### 4. Visual QC before alpha keying
+
+Open `sheet_white.png` and scan for:
+- Line weight mismatch (bottom half lines thinner/thicker)
+- Palette temperature shift (warmer/cooler tones)
+- Hair color drift across the boundary row
+
+If drift is visible, re-run Call B with a slightly adjusted prompt (e.g., add `"same warm creamy pastel palette as reference sheet"`) and a fresh seed. Repeat QC.
+
+### 5. Common cross-sheet failure modes
+
+| Symptom | Cause | Fix |
+|---|---|---|
+| Sheet B looks sketch-like, less shaded | Gemini skipped cel-shading | Add `"flat cel shading, no sketch lines"` to Call B prompt |
+| Hair color changes between row 4 and row 5 | Character lock didn't persist | Repeat exact hex color code in Call B character lock |
+| Sheet B overall darker | Different generation context | Apply brightness correction (step 3) |
+| Outline weight visibly thinner in sheet B | Gemini style variance | Add `"thick uniform bold black ink outline, same line weight as reference"` |
 
 ## Common Mistakes
 
