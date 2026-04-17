@@ -14,6 +14,7 @@ Outputs:
 from __future__ import annotations
 
 import sys
+from itertools import combinations
 from pathlib import Path
 
 import numpy as np
@@ -25,6 +26,9 @@ OUTLINE_THRESH = 150  # min per-channel delta from #fff to count as outline (dar
 OUTLINE_DILATE = 2    # dilation iterations to close outline gaps before flood-fill
 FEATHER_PX = 1.2      # gaussian blur radius on alpha edge (px)
 ROWS, COLS = 4, 4  # defaults; overridden by --rows / --cols CLI args
+CUT_DARK_THRESH = 40
+CUT_MAX_EMPTY_PIXELS = 0
+CUT_EDGE_MARGIN_DIVISOR = 8
 
 
 def key_white_bg(img: Image.Image) -> Image.Image:
@@ -65,59 +69,114 @@ def key_white_bg(img: Image.Image) -> Image.Image:
     return Image.fromarray(rgba, mode="RGBA")
 
 
-def _find_cuts(profile: np.ndarray, n_cells: int, white_tol: float = 0.98) -> list[int]:
-    """Return n_cells+1 cut positions from a per-row/col white-fraction profile.
+def _collect_runs(mask: np.ndarray) -> list[tuple[int, int]]:
+    """Return [start, end) runs where mask is true."""
+    runs: list[tuple[int, int]] = []
+    start: int | None = None
+    for i, flag in enumerate(mask):
+        if flag and start is None:
+            start = i
+        elif not flag and start is not None:
+            runs.append((start, i))
+            start = None
+    if start is not None:
+        runs.append((start, len(mask)))
+    return runs
 
-    Strategy:
-    1. Find all contiguous runs where white_fraction >= white_tol (gap bands).
-    2. Represent each run by its midpoint.
-    3. Always include 0 and len(profile) as outer cuts.
-    4. Interior midpoints should be n_cells-1; if more exist (thin intra-sticker
-       white bands), keep only the n_cells-1 most spread-out ones via max-spacing
-       selection.
+
+def _equal_spacing_cuts(size: int, n_cells: int) -> list[int]:
+    """Return [0, ..., size] with equal cell spacing."""
+    return [int(round(size * i / n_cells)) for i in range(n_cells + 1)]
+
+
+def _select_best_spread(
+    candidates: list[tuple[int, int]],
+    size: int,
+    target_count: int,
+) -> list[int]:
+    """Choose the subset whose gaps are maximally spread across the full axis."""
+    best_positions: list[int] | None = None
+    best_score: tuple[tuple[int, ...], int, tuple[int, ...]] | None = None
+
+    for combo in combinations(candidates, target_count):
+        positions = [pos for pos, _ in combo]
+        boundaries = [0] + positions + [size]
+        gaps = tuple(sorted(boundaries[i + 1] - boundaries[i] for i in range(len(boundaries) - 1)))
+        widths = tuple(sorted((width for _, width in combo), reverse=True))
+        score = (gaps, sum(widths), widths)
+        if best_score is None or score > best_score:
+            best_score = score
+            best_positions = positions
+
+    return [] if best_positions is None else best_positions
+
+
+def _fill_missing_cuts(size: int, selected: list[int], target_count: int) -> list[int]:
+    """Preserve known cuts, then split the largest remaining gaps to complete the grid."""
+    chosen = sorted(selected)
+    while len(chosen) < target_count:
+        boundaries = [0] + chosen + [size]
+        gap_index = max(
+            range(len(boundaries) - 1),
+            key=lambda i: boundaries[i + 1] - boundaries[i],
+        )
+        start, end = boundaries[gap_index], boundaries[gap_index + 1]
+        midpoint = (start + end) // 2
+        if midpoint in chosen or midpoint <= start or midpoint >= end:
+            return _equal_spacing_cuts(size, target_count + 1)[1:-1]
+        chosen.append(midpoint)
+        chosen.sort()
+    return chosen
+
+
+def _find_cuts(
+    profile: np.ndarray,
+    n_cells: int,
+    orthogonal_size: int,
+    white_tol: float | None = None,
+) -> list[int]:
+    """Return n_cells+1 cuts from a dark-occupancy profile.
+
+    Gap rows/columns are detected as contiguous runs whose dark-pixel count is
+    effectively zero. White interiors inside stickers remain non-gap because the
+    row/column still intersects black outline pixels elsewhere.
     """
+    del white_tol  # legacy CLI/API parameter; dark-profile cuts ignore this value
+
     size = len(profile)
-    is_gap = profile >= white_tol
-
-    # Collect gap-run midpoints (interior only, not edges)
-    mids: list[int] = []
-    in_run = False
-    run_start = 0
-    for i in range(size):
-        if is_gap[i] and not in_run:
-            run_start = i
-            in_run = True
-        elif not is_gap[i] and in_run:
-            mids.append((run_start + i) // 2)
-            in_run = False
-    if in_run:
-        mids.append((run_start + size) // 2)
-
-    # Remove edge midpoints (too close to 0 or size)
-    margin = size // (n_cells * 4)
-    mids = [m for m in mids if margin < m < size - margin]
-
     n_interior = n_cells - 1
-    if len(mids) == n_interior:
-        interior = mids
-    elif len(mids) < n_interior:
-        # Fallback: evenly spaced
-        interior = [size * (i + 1) // n_cells for i in range(n_interior)]
-    else:
-        # Too many candidates: pick n_interior with maximum mutual spacing
-        # greedy: start from the leftmost, pick next that is farthest from all chosen
-        candidates = sorted(mids)
-        chosen = [candidates[0]]
-        while len(chosen) < n_interior:
-            best = max(
-                (c for c in candidates if c not in chosen),
-                key=lambda c: min(abs(c - x) for x in chosen),
-            )
-            chosen.append(best)
-        interior = sorted(chosen)
+    if n_interior <= 0:
+        return [0, size]
 
-    cuts = [0] + interior + [size]
-    return cuts
+    del orthogonal_size  # retained for API compatibility; exact-zero runs are the default signal
+
+    empty_limit = CUT_MAX_EMPTY_PIXELS
+    edge_margin = max(2, size // max(1, n_cells * CUT_EDGE_MARGIN_DIVISOR))
+    empty_runs = _collect_runs(profile <= empty_limit)
+
+    candidates: list[tuple[int, int]] = []
+    for start, end in empty_runs:
+        if start == 0 or end == size:
+            continue
+        midpoint = (start + end) // 2
+        if midpoint <= edge_margin or midpoint >= size - edge_margin:
+            continue
+        candidates.append((midpoint, end - start))
+
+    if len(candidates) == n_interior:
+        return [0] + [pos for pos, _ in candidates] + [size]
+    if not candidates:
+        return _equal_spacing_cuts(size, n_cells)
+    if len(candidates) > n_interior:
+        selected = _select_best_spread(candidates, size=size, target_count=n_interior)
+        return [0] + selected + [size]
+
+    selected = _fill_missing_cuts(
+        size=size,
+        selected=[pos for pos, _ in candidates],
+        target_count=n_interior,
+    )
+    return [0] + selected + [size]
 
 
 def slice_grid(
@@ -125,6 +184,7 @@ def slice_grid(
     src_rgb: Image.Image | None = None,
     rows: int = ROWS,
     cols: int = COLS,
+    cut_tol: float = 0.98,
 ) -> list[Image.Image]:
     """Slice a rows×cols sticker grid, auto-detecting actual cell boundaries.
 
@@ -137,13 +197,23 @@ def slice_grid(
     if src_rgb is not None:
         rgb = np.asarray(src_rgb.convert("RGB"), dtype=np.int16)
         dist = np.max(np.abs(rgb - 255), axis=2)      # 0 = pure white
-        near_white = dist < WHITE_TOL
+        dark = dist > CUT_DARK_THRESH
 
-        col_profile = near_white.mean(axis=0)          # per-column white fraction
-        row_profile = near_white.mean(axis=1)          # per-row   white fraction
+        col_profile = dark.sum(axis=0)                # per-column dark outline count
+        row_profile = dark.sum(axis=1)                # per-row   dark outline count
 
-        x_cuts = _find_cuts(col_profile, cols)
-        y_cuts = _find_cuts(row_profile, rows)
+        x_cuts = _find_cuts(
+            col_profile,
+            cols,
+            orthogonal_size=h,
+            white_tol=cut_tol,
+        )
+        y_cuts = _find_cuts(
+            row_profile,
+            rows,
+            orthogonal_size=w,
+            white_tol=cut_tol,
+        )
         print(f"  x_cuts: {x_cuts}")
         print(f"  y_cuts: {y_cuts}")
     else:
@@ -176,6 +246,9 @@ def main() -> None:
     parser.add_argument("out_dir", nargs="?", default=None)
     parser.add_argument("--rows", type=int, default=ROWS)
     parser.add_argument("--cols", type=int, default=COLS)
+    parser.add_argument("--cut-tol", type=float, default=0.98,
+                        help="Deprecated legacy option retained for CLI compatibility; "
+                             "dark-profile cut detection ignores this value.")
     parser.add_argument("--names", default=None,
                         help="Text file with one expression name per line (snake_case); "
                              "used as cell filenames instead of 01, 02 …")
@@ -201,7 +274,7 @@ def main() -> None:
     a = np.asarray(rgba)[..., 3]
     print(f"alpha: transparent%={(a < 10).mean() * 100:.1f}  -> {out_path.name}")
 
-    for i, cell in enumerate(slice_grid(rgba, src_rgb=src, rows=rows, cols=cols)):
+    for i, cell in enumerate(slice_grid(rgba, src_rgb=src, rows=rows, cols=cols, cut_tol=args.cut_tol)):
         if names and i < len(names):
             fname = f"{names[i]}.png"
         else:

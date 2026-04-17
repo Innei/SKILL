@@ -170,18 +170,18 @@ Gemini does **not** divide the canvas into equal cells. Row/column heights vary 
 
 After stitching the two 4×4 sheets into one 4×8 canvas, run `_find_cuts()` on the combined image. Pass `n_rows=8, n_cols=4`.
 
-**Fix:** compute per-row and per-column white-fraction profiles, find contiguous near-white runs (gap bands), take their midpoints as cut positions.
+**Fix:** compute per-row and per-column **dark-outline occupancy** profiles instead of white-fraction profiles. True inter-cell gaps have zero or near-zero dark pixels because the black outline disappears entirely in the white gutter, while white hair or clothing inside a sticker still leaves some outline pixels somewhere on that same row/column.
 
 ```python
 dist = np.max(np.abs(rgb.astype(np.int16) - 255), axis=2)  # 0 = white
-near_white = dist < WHITE_TOL
-row_profile = near_white.mean(axis=1)   # fraction of white per row
-col_profile = near_white.mean(axis=0)   # fraction of white per col
-# find runs where profile >= 0.98 → midpoints = cut positions
-# For 4×8: expect 7 row cuts + 3 col cuts
+dark = binary_dilation(dist > OUTLINE_THRESH, iterations=1)
+row_profile = dark.sum(axis=1)          # dark outline count per row
+col_profile = dark.sum(axis=0)          # dark outline count per col
+# find contiguous near-zero-dark runs, then select the deepest valleys
+# under broad cell-size sanity bounds instead of equal-spacing fallback
 ```
 
-If more gap bands than expected (thin intra-sticker white highlights), keep only the `n_cells-1` most spread-out midpoints. Cells are saved as `cells/01_*.png … cells/32_*.png` (512×512). See `scripts/key_alpha.py: _find_cuts()`.
+If a gutter is noisy and no exact zero-dark run survives, fall back to the lowest dark-count valleys in the smoothed profile. Cells are saved as `cells/01_*.png … cells/32_*.png` (512×512). See `scripts/key_alpha.py: _find_cuts()`.
 
 ## Alpha Keying: Edge Flood-Fill
 
@@ -289,7 +289,7 @@ If drift is visible, re-run Call B with a slightly adjusted prompt (e.g., add `"
 | Grid lines appear in output | Add `seamless pure white, no grid lines, no cell borders` to prompt |
 | Hair color drifts across cells | Repeat exact color spec as first item in "character lock" |
 | `image.size` AttributeError | `part.as_image()` returns genai Image, not PIL; convert via `Image.open(io.BytesIO(img.image_bytes))` |
-| Adjacent sticker bleeds into cell | Gemini grid is uneven; use `_find_cuts()` white-profile detection, not `image_size // 4` |
+| Adjacent sticker bleeds into cell | Gemini grid is uneven; use `_find_cuts()` dark-profile detection, not `image_size // 4` |
 | White clothing becomes transparent | Outline gaps let flood reach fabric; set `OUTLINE_DILATE=2` to dilate outline before flood-fill |
 
 ## WeChat Submission Extras

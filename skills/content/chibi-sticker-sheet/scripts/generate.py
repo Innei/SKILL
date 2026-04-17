@@ -76,7 +76,7 @@ def generate_sheet(prompt: str, char_ref: Image.Image, anchor: Image.Image | Non
             )
         except Exception as exc:
             msg = str(exc)
-            if any(s in msg for s in ("503", "UNAVAILABLE", "429", "RESOURCE_EXHAUSTED", "ConnectError", "SSL", "EOF", "ConnectionReset", "timeout")) and attempt < 5:
+            if any(s in msg for s in ("503", "UNAVAILABLE", "429", "RESOURCE_EXHAUSTED", "ConnectError", "SSL", "EOF", "ConnectionReset", "timeout", "RemoteProtocol", "disconnected", "ConnectionError")) and attempt < 5:
                 wait = 2 ** attempt * 5
                 print(f"  [{attempt+1}/6] transient error, retry in {wait}s: {msg[:80]}")
                 time.sleep(wait)
