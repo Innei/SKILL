@@ -38,6 +38,7 @@ SKILL/
 
 | Domain           | Skill                                                                 | Purpose                                                                                                                                                            |
 | ---------------- | --------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `automation`     | [`session-handoff`](skills/automation/session-handoff/SKILL.md)       | Produce a self-contained handoff prompt for another agent when the user wants to delegate continued work                                                          |
 | `automation`     | [`working-summary`](skills/automation/working-summary/SKILL.md)       | Work summary / 周报 from GitHub PRs/commits and optional Linear (or similar) trackers; markdown output for notes (e.g. Obsidian)                                   |
 | `writing`        | [`generate-design-md`](skills/writing/generate-design-md/SKILL.md)   | Produce `DESIGN.md` for a brand/site from live CSS and tokens (awesome-design-md format)                                                                           |
 | `infrastructure` | [`mx-space-remote-db-access`](skills/infrastructure/mx-space-remote-db-access/SKILL.md) | Remote `mx-space` MongoDB inspection, guarded updates, and verification through `ssh -> docker exec -> mongosh`                                                    |
