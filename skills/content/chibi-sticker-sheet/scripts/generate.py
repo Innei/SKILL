@@ -11,8 +11,10 @@ Usage:
     output.png      : destination (default: sheet_white.png next to char_ref)
     --anchor        : optional style-anchor image (e.g. sheet_white_a.png for Call B)
 
-Environment:
-    GOOGLE_AI_STUDIO_API_KEY  or  GEMINI_API_KEY
+Environment (any one auth path):
+    GOOGLE_AI_STUDIO_API_KEY | GEMINI_API_KEY | GOOGLE_API_KEY          (AI Studio)
+    VERTEX_AI_KEY                                                       (Vertex Express)
+    GOOGLE_GENAI_USE_VERTEXAI=true + GOOGLE_CLOUD_PROJECT/LOCATION       (Vertex ADC)
 
 See SKILL.md for prompt structure guidelines.
 """
@@ -41,16 +43,48 @@ ENV_CANDIDATES = [
 ]
 
 
-def _load_api_key() -> str:
+def _load_env() -> None:
     for p in ENV_CANDIDATES:
         if p.exists():
             load_dotenv(p)
-    key = os.environ.get("GOOGLE_AI_STUDIO_API_KEY") or os.environ.get("GEMINI_API_KEY")
+
+
+def _is_vertex() -> bool:
+    return bool(os.environ.get("VERTEX_AI_KEY")) or os.environ.get(
+        "GOOGLE_GENAI_USE_VERTEXAI", ""
+    ).lower() in ("1", "true", "yes")
+
+
+def _make_client() -> genai.Client:
+    """Resolve auth: Vertex Express → Vertex ADC → AI Studio."""
+    _load_env()
+    if vkey := os.environ.get("VERTEX_AI_KEY"):
+        return genai.Client(vertexai=True, api_key=vkey)
+    if os.environ.get("GOOGLE_GENAI_USE_VERTEXAI", "").lower() in ("1", "true", "yes"):
+        return genai.Client(
+            vertexai=True,
+            project=os.environ.get("GOOGLE_CLOUD_PROJECT"),
+            location=os.environ.get("GOOGLE_CLOUD_LOCATION", "us-central1"),
+        )
+    key = (
+        os.environ.get("GOOGLE_AI_STUDIO_API_KEY")
+        or os.environ.get("GEMINI_API_KEY")
+        or os.environ.get("GOOGLE_API_KEY")
+    )
     if not key:
         raise EnvironmentError(
-            "Set GOOGLE_AI_STUDIO_API_KEY or GEMINI_API_KEY in your environment or .env"
+            "No API key. Set one of: VERTEX_AI_KEY, GOOGLE_AI_STUDIO_API_KEY, "
+            "GEMINI_API_KEY, GOOGLE_API_KEY; or GOOGLE_GENAI_USE_VERTEXAI=true "
+            "with GOOGLE_CLOUD_PROJECT/LOCATION."
         )
-    return key
+    return genai.Client(api_key=key)
+
+
+def _image_config(aspect_ratio: str, image_size: str) -> types.ImageConfig:
+    """Vertex does NOT accept image_size — drop it there."""
+    if _is_vertex():
+        return types.ImageConfig(aspect_ratio=aspect_ratio)
+    return types.ImageConfig(aspect_ratio=aspect_ratio, image_size=image_size)
 
 
 def generate_sheet(prompt: str, char_ref: Image.Image, anchor: Image.Image | None = None) -> Image.Image:
@@ -58,10 +92,10 @@ def generate_sheet(prompt: str, char_ref: Image.Image, anchor: Image.Image | Non
 
     anchor: optional style-anchor image (e.g. sheet_white_a.png for Call B cross-sheet consistency).
     """
-    client = genai.Client(api_key=_load_api_key())
+    client = _make_client()
     cfg = types.GenerateContentConfig(
         response_modalities=["TEXT", "IMAGE"],
-        image_config=types.ImageConfig(aspect_ratio="1:1", image_size="2K"),
+        image_config=_image_config(aspect_ratio="1:1", image_size="2K"),
     )
     contents = [char_ref]
     if anchor is not None:

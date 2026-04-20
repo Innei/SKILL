@@ -87,9 +87,9 @@ reference's aesthetic exactly.
 - **Lock the outfit explicitly** with `Keep the same outfit consistent across all three full-body views.` Without this, side and back views drift to different outfits.
 - **Do not include negative lists** (`do NOT add ...`). Use positive substitutes.
 - **Treat label text as decorative.** Never request specific Japanese strings; the model will produce plausible-looking marks but not real readable text.
-- **Aspect ratio 16:9, size 2K** matches the typical settei canvas. Use `1K` for fast iteration.
+- **Aspect ratio 16:9, size 2K** matches the typical settei canvas. Use `1K` for fast iteration. On Vertex (`VERTEX_AI_KEY` or `GOOGLE_GENAI_USE_VERTEXAI=true`), `image_size` is dropped automatically — the model uses its default resolution.
 - **Identity drift fix**: re-extract identity tokens from the character reference and compress to ≤ 4 sentences; do not over-describe.
-- Use the project `.env` for `GOOGLE_AI_STUDIO_API_KEY` / `GEMINI_API_KEY`. Never read `.env` directly.
+- Auth: any one of `GOOGLE_AI_STUDIO_API_KEY` / `GEMINI_API_KEY` / `GOOGLE_API_KEY` (AI Studio), **or** `VERTEX_AI_KEY` (Vertex Express), **or** `GOOGLE_GENAI_USE_VERTEXAI=true` + `GOOGLE_CLOUD_PROJECT`/`LOCATION` (Vertex ADC). Never read `.env` directly.
 
 ## Script
 

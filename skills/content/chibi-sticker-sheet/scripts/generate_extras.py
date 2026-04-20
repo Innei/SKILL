@@ -44,16 +44,41 @@ ENV_CANDIDATES = [
 ]
 
 
-def _load_api_key() -> str:
+def _load_env() -> None:
     for p in ENV_CANDIDATES:
         if p.exists():
             load_dotenv(p)
-    key = os.environ.get("GOOGLE_AI_STUDIO_API_KEY") or os.environ.get("GEMINI_API_KEY")
+
+
+def _is_vertex() -> bool:
+    return bool(os.environ.get("VERTEX_AI_KEY")) or os.environ.get(
+        "GOOGLE_GENAI_USE_VERTEXAI", ""
+    ).lower() in ("1", "true", "yes")
+
+
+def _make_client() -> genai.Client:
+    """Resolve auth: Vertex Express → Vertex ADC → AI Studio."""
+    _load_env()
+    if vkey := os.environ.get("VERTEX_AI_KEY"):
+        return genai.Client(vertexai=True, api_key=vkey)
+    if os.environ.get("GOOGLE_GENAI_USE_VERTEXAI", "").lower() in ("1", "true", "yes"):
+        return genai.Client(
+            vertexai=True,
+            project=os.environ.get("GOOGLE_CLOUD_PROJECT"),
+            location=os.environ.get("GOOGLE_CLOUD_LOCATION", "us-central1"),
+        )
+    key = (
+        os.environ.get("GOOGLE_AI_STUDIO_API_KEY")
+        or os.environ.get("GEMINI_API_KEY")
+        or os.environ.get("GOOGLE_API_KEY")
+    )
     if not key:
         raise EnvironmentError(
-            "Set GOOGLE_AI_STUDIO_API_KEY or GEMINI_API_KEY in your environment or .env"
+            "No API key. Set one of: VERTEX_AI_KEY, GOOGLE_AI_STUDIO_API_KEY, "
+            "GEMINI_API_KEY, GOOGLE_API_KEY; or GOOGLE_GENAI_USE_VERTEXAI=true "
+            "with GOOGLE_CLOUD_PROJECT/LOCATION."
         )
-    return key
+    return genai.Client(api_key=key)
 
 
 def _fit_crop(img: Image.Image, w: int, h: int) -> Image.Image:
@@ -68,7 +93,7 @@ def _fit_crop(img: Image.Image, w: int, h: int) -> Image.Image:
 
 def generate_banner(char_ref: Image.Image, theme: str) -> Image.Image:
     """Call Gemini to produce a 750×400 banner; retry on transient errors."""
-    client = genai.Client(api_key=_load_api_key())
+    client = _make_client()
     prompt = (
         f"Generate a wide horizontal banner image featuring 3 chibi versions of this character "
         f"in a {theme} themed scene, each showing a different fun expression and pose. "

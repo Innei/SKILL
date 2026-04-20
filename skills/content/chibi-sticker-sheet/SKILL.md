@@ -11,7 +11,7 @@ Generate a 4×8 chibi sticker sheet from a character reference image with Gemini
 
 - Input: 1 character reference PNG + a list of 32 expressions
 - Output: `sheet_white.png`, `sheet_transparent.png`, `cells/*.png` (512×512 each)
-- Requires: `GOOGLE_AI_STUDIO_API_KEY`, Python + `uv`, model `gemini-3.1-flash-image-preview`
+- Requires: any one of `GOOGLE_AI_STUDIO_API_KEY` / `GEMINI_API_KEY` / `GOOGLE_API_KEY` (AI Studio) **or** `VERTEX_AI_KEY` (Vertex Express) **or** `GOOGLE_GENAI_USE_VERTEXAI=true` + `GOOGLE_CLOUD_PROJECT`/`LOCATION` (Vertex ADC); Python + `uv`; model `gemini-3.1-flash-image-preview`
 - Not covered: per-cell text overlays; use PIL `ImageDraw` post-hoc for captions
 
 ## Key Finding: Double-Matte Fails

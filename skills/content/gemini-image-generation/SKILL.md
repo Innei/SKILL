@@ -30,7 +30,10 @@ Do not use this skill when:
 
 ## Prerequisites
 
-- `GOOGLE_AI_STUDIO_API_KEY` (or `GEMINI_API_KEY`) in `.env.local` or `.env`.
+- One of the following auth paths in `.env.local` or `.env`:
+  - **Gemini Developer API (AI Studio)**: `GOOGLE_AI_STUDIO_API_KEY` or `GEMINI_API_KEY` or `GOOGLE_API_KEY`
+  - **Vertex AI Express Mode**: `VERTEX_AI_KEY` (API-key string, typically prefixed `AQ.`) — requires Vertex AI API enabled in the bound project once
+  - **Vertex AI ADC**: `GOOGLE_GENAI_USE_VERTEXAI=true` + `GOOGLE_CLOUD_PROJECT` + `GOOGLE_CLOUD_LOCATION` (default `us-central1`); credentials via `gcloud auth application-default login` or `GOOGLE_APPLICATION_CREDENTIALS`
 - Python with `google-genai`, `Pillow`, `python-dotenv`. With `uv`, declare deps inline at the top of the script:
 
   ```python
@@ -39,7 +42,7 @@ Do not use this skill when:
   # ///
   ```
 
-- Default model: `gemini-3.1-flash-image-preview`.
+- Default model: `gemini-3.1-flash-image-preview` (same name on AI Studio and Vertex).
 
 ## Model Capabilities
 
@@ -51,16 +54,13 @@ Do not use this skill when:
 ## Text-to-Image
 
 ```python
-from google import genai
-from google.genai import types
-
-client = genai.Client()
+client = _make_client()  # defined above
 resp = client.models.generate_content(
     model="gemini-3.1-flash-image-preview",
     contents=["A serene mountain landscape at dawn, watercolor style."],
     config=types.GenerateContentConfig(
         response_modalities=["TEXT", "IMAGE"],
-        image_config=types.ImageConfig(aspect_ratio="16:9", image_size="2K"),
+        image_config=_image_config(aspect_ratio="16:9", image_size="2K"),
     ),
 )
 for part in resp.parts:
@@ -73,11 +73,9 @@ for part in resp.parts:
 Pass the source image alongside a prompt that locks composition and describes only the targeted change.
 
 ```python
-from google import genai
-from google.genai import types
 from PIL import Image
 
-client = genai.Client()
+client = _make_client()  # defined above
 src = Image.open("source.png")
 
 prompt = (
@@ -93,7 +91,7 @@ resp = client.models.generate_content(
     contents=[prompt, src],
     config=types.GenerateContentConfig(
         response_modalities=["TEXT", "IMAGE"],
-        image_config=types.ImageConfig(aspect_ratio="1:1", image_size="1K"),
+        image_config=_image_config(aspect_ratio="1:1", image_size="1K"),
     ),
 )
 for part in resp.parts:
@@ -181,26 +179,75 @@ for attempt in range(6):
     break
 ```
 
-## Loading the API Key
+## Loading the API Key / Creating the Client
+
+Use a single `_make_client()` helper that resolves the auth path from env. Place it at the top of every script that uses this skill; scripts should never branch on auth in their business logic.
 
 ```python
 import os
 from dotenv import load_dotenv
-load_dotenv("/path/to/.env")  # or default cwd .env / .env.local
-key = os.environ.get("GOOGLE_AI_STUDIO_API_KEY") or os.environ.get("GEMINI_API_KEY")
-client = genai.Client(api_key=key)
+from google import genai
+from google.genai import types
+
+
+def _make_client() -> genai.Client:
+    """Resolve auth path from env. Priority: Vertex express → Vertex ADC → AI Studio."""
+    for p in (".env.local", ".env"):
+        if os.path.exists(p):
+            load_dotenv(p)
+
+    if vkey := os.environ.get("VERTEX_AI_KEY"):
+        # Vertex AI Express Mode: single API key, no project/location needed
+        return genai.Client(vertexai=True, api_key=vkey)
+
+    if os.environ.get("GOOGLE_GENAI_USE_VERTEXAI", "").lower() in ("1", "true", "yes"):
+        # Vertex AI with ADC / service account
+        return genai.Client(
+            vertexai=True,
+            project=os.environ.get("GOOGLE_CLOUD_PROJECT"),
+            location=os.environ.get("GOOGLE_CLOUD_LOCATION", "us-central1"),
+        )
+
+    key = (
+        os.environ.get("GOOGLE_AI_STUDIO_API_KEY")
+        or os.environ.get("GEMINI_API_KEY")
+        or os.environ.get("GOOGLE_API_KEY")
+    )
+    if not key:
+        raise EnvironmentError(
+            "No API key. Set one of: VERTEX_AI_KEY, GOOGLE_AI_STUDIO_API_KEY, "
+            "GEMINI_API_KEY, GOOGLE_API_KEY; or GOOGLE_GENAI_USE_VERTEXAI=true "
+            "with GOOGLE_CLOUD_PROJECT/LOCATION."
+        )
+    return genai.Client(api_key=key)
+
+
+def _is_vertex() -> bool:
+    return bool(os.environ.get("VERTEX_AI_KEY")) or os.environ.get(
+        "GOOGLE_GENAI_USE_VERTEXAI", ""
+    ).lower() in ("1", "true", "yes")
+
+
+def _image_config(aspect_ratio: str = "1:1", image_size: str = "1K") -> types.ImageConfig:
+    """Build ImageConfig. Vertex does NOT support image_size — drop it there."""
+    if _is_vertex():
+        return types.ImageConfig(aspect_ratio=aspect_ratio)
+    return types.ImageConfig(aspect_ratio=aspect_ratio, image_size=image_size)
+
+
+client = _make_client()
 ```
 
 Never read a `.env` file by hand to print the key — load it into the environment via `python-dotenv` and reference the variable.
 
 ## Output Configuration
 
-| Parameter | Supported values |
-| --- | --- |
-| `aspect_ratio` | `1:1`, `1:4`, `1:8`, `2:3`, `3:2`, `3:4`, `4:1`, `4:3`, `4:5`, `5:4`, `8:1`, `9:16`, `16:9`, `21:9` |
-| `image_size` | `512`, `1K`, `2K`, `4K` |
+| Parameter | Supported values | AI Studio | Vertex |
+| --- | --- | --- | --- |
+| `aspect_ratio` | `1:1`, `1:4`, `1:8`, `2:3`, `3:2`, `3:4`, `4:1`, `4:3`, `4:5`, `5:4`, `8:1`, `9:16`, `16:9`, `21:9` | ✅ | ✅ |
+| `image_size` | `512`, `1K`, `2K`, `4K` | ✅ | ❌ (passing it raises `ValidationError: Extra inputs are not permitted`) |
 
-`1K` is sufficient for most preview / iteration work; reserve `2K`/`4K` for finals.
+`1K` is sufficient for most preview / iteration work; reserve `2K`/`4K` for finals. Use `_image_config()` (above) to drop `image_size` automatically when running on Vertex.
 
 ## Verification
 

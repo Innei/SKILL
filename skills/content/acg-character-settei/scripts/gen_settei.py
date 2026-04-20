@@ -47,9 +47,42 @@ for p in ENV_CANDIDATES:
         load_dotenv(p)
         break
 
-api_key = os.environ.get("GOOGLE_AI_STUDIO_API_KEY") or os.environ.get("GEMINI_API_KEY")
-if not api_key:
-    sys.exit("missing GOOGLE_AI_STUDIO_API_KEY / GEMINI_API_KEY in env")
+
+def _is_vertex() -> bool:
+    return bool(os.environ.get("VERTEX_AI_KEY")) or os.environ.get(
+        "GOOGLE_GENAI_USE_VERTEXAI", ""
+    ).lower() in ("1", "true", "yes")
+
+
+def _make_client() -> genai.Client:
+    """Resolve auth: Vertex Express → Vertex ADC → AI Studio."""
+    if vkey := os.environ.get("VERTEX_AI_KEY"):
+        return genai.Client(vertexai=True, api_key=vkey)
+    if os.environ.get("GOOGLE_GENAI_USE_VERTEXAI", "").lower() in ("1", "true", "yes"):
+        return genai.Client(
+            vertexai=True,
+            project=os.environ.get("GOOGLE_CLOUD_PROJECT"),
+            location=os.environ.get("GOOGLE_CLOUD_LOCATION", "us-central1"),
+        )
+    key = (
+        os.environ.get("GOOGLE_AI_STUDIO_API_KEY")
+        or os.environ.get("GEMINI_API_KEY")
+        or os.environ.get("GOOGLE_API_KEY")
+    )
+    if not key:
+        sys.exit(
+            "No API key. Set one of: VERTEX_AI_KEY, GOOGLE_AI_STUDIO_API_KEY, "
+            "GEMINI_API_KEY, GOOGLE_API_KEY; or GOOGLE_GENAI_USE_VERTEXAI=true "
+            "with GOOGLE_CLOUD_PROJECT/LOCATION."
+        )
+    return genai.Client(api_key=key)
+
+
+def _image_config(aspect_ratio: str, image_size: str) -> types.ImageConfig:
+    """Vertex does NOT accept image_size — drop it there."""
+    if _is_vertex():
+        return types.ImageConfig(aspect_ratio=aspect_ratio)
+    return types.ImageConfig(aspect_ratio=aspect_ratio, image_size=image_size)
 
 # ---- prompt ----------------------------------------------------------------
 PROMPT = (
@@ -73,13 +106,13 @@ PROMPT = (
 )
 
 # ---- call ------------------------------------------------------------------
-client = genai.Client(api_key=api_key)
+client = _make_client()
 template = Image.open(TEMPLATE_PATH)
 character = Image.open(CHARACTER_PATH)
 
 cfg = types.GenerateContentConfig(
     response_modalities=["TEXT", "IMAGE"],
-    image_config=types.ImageConfig(aspect_ratio="16:9", image_size="2K"),
+    image_config=_image_config(aspect_ratio="16:9", image_size="2K"),
 )
 
 for attempt in range(6):

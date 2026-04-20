@@ -39,8 +39,11 @@ Confirm these before generating anything:
 ### 2. Load credentials and choose the model
 
 - Read `.env.local` first, then `.env`.
-- Require `GOOGLE_AI_STUDIO_API_KEY`.
-- Default model: `gemini-3.1-flash-image-preview`.
+- Accept any one of these auth paths (see `gemini-image-generation` skill for the full `_make_client()` helper):
+  - AI Studio: `GOOGLE_AI_STUDIO_API_KEY` / `GEMINI_API_KEY` / `GOOGLE_API_KEY`
+  - Vertex Express: `VERTEX_AI_KEY`
+  - Vertex ADC: `GOOGLE_GENAI_USE_VERTEXAI=true` + `GOOGLE_CLOUD_PROJECT`/`LOCATION`
+- Default model: `gemini-3.1-flash-image-preview` (same name on both surfaces).
 - If the user asks for a newer or latest Gemini image model, verify the current official name before use.
 
 Minimal request shape:
@@ -57,6 +60,8 @@ Minimal request shape:
   }
 }
 ```
+
+> **Vertex caveat**: `imageSize` is not accepted on Vertex endpoints (raises `ValidationError: Extra inputs are not permitted`). Omit `imageSize` when routing through `VERTEX_AI_KEY` / Vertex ADC; the model returns its default resolution and you post-process to the target exports.
 
 ### 3. Generate two base images
 
