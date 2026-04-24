@@ -98,13 +98,22 @@ session is using):
 
 ## Presentation to the user
 
-- Preface the prompt with a short single sentence in the user's preferred
-  style saying "this is the handoff prompt, paste it into $target".
-- Wrap the entire prompt in a fenced code block (four backticks if the prompt
-  contains triple-backtick code blocks internally). The user should be able
-  to copy once and paste into the target tool.
+- **Do not emit the handoff prompt inline in chat.** Write it to a file
+  instead, then open that file for the user.
+- Steps, in order:
+  1. Generate a random filename under the system temp directory, e.g.
+     `/tmp/session-handoff-<random>.md` (use a short unique token — timestamp,
+     `uuidgen | head -c 8`, `$RANDOM`, etc.). Avoid collisions with existing
+     files.
+  2. Use the **Write** file tool to write the full handoff prompt (Markdown,
+     all required sections) to that path. Do **not** wrap the content in an
+     outer fenced code block — the file *is* the artifact.
+  3. Run `open <path>` (macOS) via the shell tool to open the file in the
+     user's default Markdown viewer/editor.
+  4. Reply with exactly `OK` — no preface, no summary, no path echo, no
+     fenced block of the content. The file + `open` call is the delivery.
 - Do **not** execute the handoff yourself (don't spawn the other agent). Your
-  job is to produce the artifact.
+  job is to produce the artifact file.
 
 ## Quality bar
 
