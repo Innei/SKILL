@@ -67,6 +67,14 @@ SKILL/
 | [`mx-space-remote-db-access`](skills/infrastructure/mx-space-remote-db-access/SKILL.md) | Remote `mx-space` MongoDB inspection, guarded updates, and verification through `ssh → docker exec → mongosh` |
 | [`mx-space-remote-translation-audit`](skills/infrastructure/mx-space-remote-translation-audit/SKILL.md) | Remote translation auditing — coverage checks, freshness interpretation, and route-level verification |
 
+### Research
+
+> Data analysis, report generation, conversation mining.
+
+| Skill | Purpose |
+| ----- | ------- |
+| [`chat-export-report`](skills/research/chat-export-report/SKILL.md) | Analyze massive exported chat logs (WeChat / Telegram / iMessage / QQ) and produce layered, drill-downable reports grounded in original quotes |
+
 ### Content
 
 > Site-specific publishing, content operations, media handling.
