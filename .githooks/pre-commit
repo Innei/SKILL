@@ -1,0 +1,71 @@
+#!/usr/bin/env bash
+# Verify SKILL repo integrity before allowing a commit.
+#
+# Rules:
+#   1. Every skills/<domain>/<name>/SKILL.md must be referenced in README.md.
+#   2. Every skill must have a flat symlink at .agent/skills/<name> pointing
+#      to ../../skills/<domain>/<name>.
+#   3. Every skill must have the same flat symlink at .claude/skills/<name>.
+#   4. No orphan symlinks in .agent/skills or .claude/skills (target must exist).
+
+set -euo pipefail
+
+ROOT="$(git rev-parse --show-toplevel)"
+cd "$ROOT"
+
+errors=()
+
+while IFS= read -r skill_md; do
+  skill_dir="${skill_md%/SKILL.md}"
+  name="${skill_dir##*/}"
+  domain="$(basename "$(dirname "$skill_dir")")"
+  expected_target="../../skills/$domain/$name"
+
+  if ! grep -qF "skills/$domain/$name/SKILL.md" README.md; then
+    errors+=("README.md missing entry for skills/$domain/$name/SKILL.md")
+  fi
+
+  for link in ".agent/skills/$name" ".claude/skills/$name"; do
+    if [ ! -L "$link" ]; then
+      errors+=("$link missing or not a symlink")
+    else
+      actual="$(readlink "$link")"
+      if [ "$actual" != "$expected_target" ]; then
+        errors+=("$link points to '$actual', expected '$expected_target'")
+      fi
+    fi
+  done
+done < <(find skills -mindepth 3 -maxdepth 3 -name SKILL.md 2>/dev/null)
+
+for link in .agent/skills/* .claude/skills/*; do
+  [ -L "$link" ] || continue
+  target="$(readlink "$link")"
+  case "$target" in
+    ../../skills/*) ;;
+    *)
+      errors+=("$link has unexpected target: $target")
+      continue
+      ;;
+  esac
+  resolved="${target#../../}"
+  if [ ! -d "$resolved" ]; then
+    errors+=("$link is orphan (points to non-existent $target)")
+  fi
+done
+
+if [ "${#errors[@]}" -gt 0 ]; then
+  {
+    printf '\npre-commit: SKILL repo integrity check failed:\n'
+    for e in "${errors[@]}"; do printf '  - %s\n' "$e"; done
+    cat <<'EOF'
+
+Fix with:
+  - Add a row to the corresponding domain table in README.md
+  - ln -sf ../../skills/<domain>/<skill-name> .agent/skills/<skill-name>
+  - ln -sf ../../skills/<domain>/<skill-name> .claude/skills/<skill-name>
+
+If you really need to bypass this once, append --no-verify to git commit.
+EOF
+  } >&2
+  exit 1
+fi
