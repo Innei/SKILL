@@ -64,6 +64,7 @@ SKILL/
 | [`cloudflare-r2-upload`](skills/infrastructure/cloudflare-r2-upload/SKILL.md) | Upload files/batches to Cloudflare R2 via `wrangler`, resolve multi-account context, set MIME, and verify public URLs |
 | [`dokploy-api-cli`](skills/infrastructure/dokploy-api-cli/SKILL.md) | Operate Dokploy deployments via REST API — create/update/deploy services, switch sources, script redeploys |
 | [`dokploy-internal-oneshot`](skills/infrastructure/dokploy-internal-oneshot/SKILL.md) | Run ephemeral one-shot tasks inside a Dokploy project's internal network without exposing services publicly |
+| [`dokploy-traefik-traffic-split`](skills/infrastructure/dokploy-traefik-traffic-split/SKILL.md) | Canary two backends on one Dokploy domain with path-aware weighted+sticky Traefik routing; covers SPA asset trap, dry-run on canary host, and instant rollback |
 | [`mx-space-remote-db-access`](skills/infrastructure/mx-space-remote-db-access/SKILL.md) | Remote `mx-space` MongoDB inspection, guarded updates, and verification through `ssh → docker exec → mongosh` |
 | [`mx-space-remote-translation-audit`](skills/infrastructure/mx-space-remote-translation-audit/SKILL.md) | Remote translation auditing — coverage checks, freshness interpretation, and route-level verification |
 
@@ -117,3 +118,15 @@ Skills are loaded by Copilot CLI (`.agent/`) and Claude Code (`.claude/`) via **
 - Directory names should use lowercase kebab-case.
 - Skill `name` values should be stable and descriptive.
 - Prefer names that state both target and action, such as `mx-space-remote-db-access` or `article-publish-checklist`.
+
+## Repository Hooks
+
+A pre-commit hook in `.githooks/pre-commit` enforces the rules above: every skill under `skills/<domain>/<name>/SKILL.md` must have a README entry and matching flat symlinks under `.agent/skills/` and `.claude/skills/`. Orphan symlinks fail the hook too.
+
+Enable it once per clone:
+
+```bash
+git config core.hooksPath .githooks
+```
+
+If you must bypass it for a non-skill commit, use `git commit --no-verify`.
