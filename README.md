@@ -67,6 +67,7 @@ SKILL/
 | [`dokploy-traefik-traffic-split`](skills/infrastructure/dokploy-traefik-traffic-split/SKILL.md) | Canary two backends on one Dokploy domain with path-aware weighted+sticky Traefik routing; covers SPA asset trap, dry-run on canary host, and instant rollback |
 | [`mx-space-remote-db-access`](skills/infrastructure/mx-space-remote-db-access/SKILL.md) | Remote `mx-space` MongoDB inspection, guarded updates, and verification through `ssh → docker exec → mongosh` |
 | [`mx-space-remote-translation-audit`](skills/infrastructure/mx-space-remote-translation-audit/SKILL.md) | Remote translation auditing — coverage checks, freshness interpretation, and route-level verification |
+| [`vless-reality-aws-lightsail`](skills/infrastructure/vless-reality-aws-lightsail/SKILL.md) | End-to-end VLESS+Reality+Vision on AWS Lightsail: Xray server with publicly-trusted SNI selection, Alpine LXC sing-box SOCKS5 bridge for LAN clients, and Surge proxy/policy-group wiring |
 
 ### Research
 

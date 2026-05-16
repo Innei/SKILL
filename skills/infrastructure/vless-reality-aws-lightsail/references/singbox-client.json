@@ -1,0 +1,42 @@
+{
+  "_comment_template": "sing-box ≥1.13 compatible. Substitute <SERVER_IP>, <UUID>, <SNI>, <PUBLIC_KEY>, <SHORTID>. For the LAN-CT variant set inbounds[0].listen to 0.0.0.0; for the Mac-local variant keep 127.0.0.1. Drop this _comment_ field before deploying.",
+  "log": { "level": "info", "timestamp": true },
+  "inbounds": [
+    {
+      "type": "socks",
+      "tag": "socks-in",
+      "listen": "127.0.0.1",
+      "listen_port": 10808
+    }
+  ],
+  "outbounds": [
+    {
+      "type": "vless",
+      "tag": "proxy",
+      "server": "<SERVER_IP>",
+      "server_port": 443,
+      "uuid": "<UUID>",
+      "flow": "xtls-rprx-vision",
+      "packet_encoding": "xudp",
+      "tls": {
+        "enabled": true,
+        "server_name": "<SNI>",
+        "utls": { "enabled": true, "fingerprint": "chrome" },
+        "reality": {
+          "enabled": true,
+          "public_key": "<PUBLIC_KEY>",
+          "short_id": "<SHORTID>"
+        }
+      }
+    },
+    { "type": "direct", "tag": "direct" }
+  ],
+  "route": {
+    "rules": [
+      { "action": "sniff" },
+      { "ip_is_private": true, "outbound": "direct" },
+      { "domain_suffix": [".cn"], "outbound": "direct" }
+    ],
+    "final": "proxy"
+  }
+}

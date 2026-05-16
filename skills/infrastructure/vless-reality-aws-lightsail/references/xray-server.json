@@ -1,0 +1,43 @@
+{
+  "_comment_template": "Substitute placeholders <UUID>, <SNI>, <PRIVATEKEY>, <SHORTID>. Drop this _comment_ field before deploying — Xray will reject unknown top-level keys.",
+  "log": { "loglevel": "warning" },
+  "inbounds": [
+    {
+      "listen": "0.0.0.0",
+      "port": 443,
+      "protocol": "vless",
+      "settings": {
+        "clients": [
+          { "id": "<UUID>", "flow": "xtls-rprx-vision" }
+        ],
+        "decryption": "none"
+      },
+      "streamSettings": {
+        "network": "tcp",
+        "security": "reality",
+        "realitySettings": {
+          "show": false,
+          "dest": "<SNI>:443",
+          "xver": 0,
+          "serverNames": ["<SNI>"],
+          "privateKey": "<PRIVATEKEY>",
+          "shortIds": ["<SHORTID>", ""]
+        }
+      },
+      "sniffing": {
+        "enabled": true,
+        "destOverride": ["http", "tls", "quic"],
+        "routeOnly": true
+      }
+    }
+  ],
+  "outbounds": [
+    { "protocol": "freedom",   "tag": "direct" },
+    { "protocol": "blackhole", "tag": "block"  }
+  ],
+  "routing": {
+    "rules": [
+      { "type": "field", "ip": ["geoip:private"], "outboundTag": "block" }
+    ]
+  }
+}
