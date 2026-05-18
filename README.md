@@ -42,6 +42,7 @@ SKILL/
 | Skill | Purpose |
 | ----- | ------- |
 | [`session-handoff`](skills/automation/session-handoff/SKILL.md) | Produce a self-contained handoff prompt for another agent when the user wants to delegate continued work |
+| [`session-to-skill-and-blog`](skills/automation/session-to-skill-and-blog/SKILL.md) | Productize a completed engineering session as a paired skill (in this repo) and a published blog post that links to it |
 | [`working-summary`](skills/automation/working-summary/SKILL.md) | Work summary / 周报 from GitHub PRs/commits and optional Linear trackers; markdown output for notes (e.g. Obsidian) |
 
 ### Writing
