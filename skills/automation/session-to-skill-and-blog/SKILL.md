@@ -39,7 +39,7 @@ A reference example lives at `references/config.example.json`.
 | Skill repo            | `config.skill_repo_dir` (fallback `~/git/innei-repo/skill`) → `git@github.com:Innei/SKILL.git` (`main`) |
 | Skill web URL         | `https://github.com/Innei/SKILL/tree/main/skills/<domain>/<skill-name>`                  |
 | Available domains     | `infrastructure` / `automation` / `writing` / `research` / `content`                     |
-| `litexml-authoring`   | Fetched from `https://raw.githubusercontent.com/Innei/haklex/main/.agents/skills/litexml-authoring/SKILL.md` (cache: `~/.cache/innei-skills/litexml-authoring/SKILL.md`) |
+| `litexml-authoring`   | Fetched via `degit` from `github.com/Innei/haklex/.claude/skills/litexml-authoring` (SKILL.md + `references/` subtree) → cache `~/.cache/innei-skills/litexml-authoring/` |
 | `litexml` CLI         | `npx -y @haklex/rich-litexml-cli@latest …` (npm; bin name `litexml`)                     |
 | `mxs` install         | `npm i -g @mx-space/cli` (Node ≥ 22)                                                     |
 | `mxs` auth (one-off)  | `mxs auth login` → device flow; persists to `~/.config/mxs/credentials.json`             |
@@ -135,19 +135,21 @@ per "act" mirroring the skill's steps → each act follows symptom →
 investigation → fix → why → closing (skill tree listing + bottom URL CTA).
 
 **Medium:** default LiteXML (for Innei's blog). Load `litexml-authoring`
-by fetching the latest from GitHub:
+by fetching the latest subtree from GitHub via `degit` (pulls
+`SKILL.md` + `references/` in one shot, always overwriting the cache):
 
 ```bash
 LITEXML_CACHE="$HOME/.cache/innei-skills/litexml-authoring"
-mkdir -p "$LITEXML_CACHE"
-curl -fsSL --max-time 10 \
-  "https://raw.githubusercontent.com/Innei/haklex/main/.agents/skills/litexml-authoring/SKILL.md" \
-  -o "$LITEXML_CACHE/SKILL.md.tmp" \
-  && mv "$LITEXML_CACHE/SKILL.md.tmp" "$LITEXML_CACHE/SKILL.md"
-# If the network fetch fails, fall back to the cached copy (if any).
+mkdir -p "$(dirname "$LITEXML_CACHE")"
+npx -y degit Innei/haklex/.claude/skills/litexml-authoring \
+  "$LITEXML_CACHE" --force
+# If the network fetch fails, fall back to the previously cached copy.
 ```
 
-Then `Read` `$LITEXML_CACHE/SKILL.md` for tag schema. Preview:
+Then `Read` `$LITEXML_CACHE/SKILL.md` for the overview and follow its
+own pointers to `references/authoring-recipes.md`, `references/cli.md`,
+`references/nodes-structural.md`, `references/nodes-extensions.md` as
+needed. Preview:
 
 ```bash
 npx -y @haklex/rich-litexml-cli@latest /tmp/blog/article.xml --format html \
