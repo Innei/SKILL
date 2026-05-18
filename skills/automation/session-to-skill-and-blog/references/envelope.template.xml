@@ -1,0 +1,22 @@
+<mxpost>
+  <meta>
+    <title><!-- TITLE --></title>
+    <slug><!-- KEBAB-SLUG --></slug>
+    <category><!-- EXISTING CATEGORY SLUG; check via `mxs category list --output llm` --></category>
+    <tags>
+      <tag><!-- TAG-1 --></tag>
+      <tag><!-- TAG-2 --></tag>
+    </tags>
+    <state>draft</state>
+    <format>lexical</format>
+  </meta>
+  <content>
+    <!--
+      LiteXML body here. See $LITEXML_CACHE/SKILL.md (load via
+      scripts/load-litexml.sh) for tag schema and authoring recipes.
+
+      Do NOT add a <summary> here — server AI auto-generates it.
+      aiGen is set via the --meta flag in scripts/publish-post.sh, not here.
+    -->
+  </content>
+</mxpost>
