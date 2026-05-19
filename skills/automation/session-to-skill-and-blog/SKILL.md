@@ -2,8 +2,7 @@
 name: session-to-skill-and-blog
 description: >
   Turn a completed non-trivial engineering session into a paired durable
-  artifact: (1) a reusable skill under Innei's personal SKILL repo
-  (default `~/git/innei-repo/skill`, overridable via config), and (2) a
+  artifact: (1) a reusable skill under Innei's personal SKILL repo, and (2) a
   published blog post that narrates the journey and embeds the skill URL.
   Triggers on "把这个过程写成 skill 再写一篇 blog"、"沉淀一下这次的折腾"、
   "productize this session"、"publish this as a skill and a writeup".
