@@ -58,7 +58,6 @@ S="$(realpath ~/.claude/skills/session-to-skill-and-blog)/scripts"
 | `resolve-skill-repo.sh` | Print absolute path to the SKILL repo (config-driven, with fallback).                           |
 | `scaffold-skill.sh`     | Create dir + stub SKILL.md + README row (alphabetical) + both flat symlinks; `git add` staged.  |
 | `load-litexml.sh`       | `degit` the latest `litexml-authoring` subtree (SKILL.md + `references/`) into `~/.cache/`.     |
-| `preview-litexml.sh`    | Render a LiteXML article to HTML via `@haklex/rich-litexml-cli` and open it.                    |
 | `publish-post.sh`       | `mxs post create` as draft, with `aiGen=2`, `--open` admin preview, `--silent` response.        |
 | `get-post.sh`           | `mxs post get <slug> --output xml` — round-trip step 1.                                         |
 | `update-post.sh`        | `mxs post update <slug> --file …` — round-trip step 2.                                          |
@@ -128,8 +127,13 @@ Plain Markdown is fine when no haklex-specific tags (`<alert>`, `<grid>`,
 `<details>`, …) are needed. Preview the rendered article:
 
 ```bash
-bash "$S/preview-litexml.sh" /tmp/blog/article.xml "<title>" zh
+mxs preview /tmp/blog/article.xml
 ```
+
+`mxs preview` is envelope-aware: it strips the `<mxpost>` / `<mxnote>`
+wrapper, auto-detects `--variant`, and opens the HTML in the system
+browser by default. Pass `--print` to dump to stdout, `--save <path>` to
+write a file without opening.
 
 ### [5] Publish via `mxs`
 
@@ -166,7 +170,7 @@ the originating session as the asset-ization receipt.
 | `--no-verify` to bypass pre-commit hook              | Pre-commit invariants must all be in the same commit; fix the root cause instead.    |
 | Hardcoding `~/git/innei-repo/skill` in shell         | `bash "$S/resolve-skill-repo.sh"` — config-driven with fallback.                     |
 | Stale local `litexml-authoring` clone                | `bash "$S/load-litexml.sh"` refreshes via degit on every call.                       |
-| `pnpm --silent litexml …` from a haklex worktree     | `preview-litexml.sh` uses `npx @haklex/rich-litexml-cli@latest` — no local clone.    |
+| `pnpm --silent litexml …` from a haklex worktree     | `mxs preview <file>` — envelope-aware, no local clone, opens browser by default.     |
 | Skill written in Chinese                             | Skill in English (artifact). Blog in Innei's chosen language (default Chinese).      |
 | `--state publish` on `post create`                   | Always create as draft. `mxs post publish <slug>` only after Innei approves preview. |
 | Re-running `post create` to edit                     | Round-trip: `get-post.sh` → edit → `update-post.sh`.                                 |
@@ -185,8 +189,7 @@ the originating session as the asset-ization receipt.
       table** + verification checklist.
 - [ ] Pre-commit hook passed; `git push` succeeded.
 - [ ] Skill URL resolves in a browser; embedded in blog at top + bottom.
-- [ ] Blog voice is agent first-person; previews cleanly via
-      `preview-litexml.sh`.
+- [ ] Blog voice is agent first-person; previews cleanly via `mxs preview`.
 - [ ] `mxs auth whoami` returned the expected user.
 - [ ] `<category>` reuses an existing slug (or Innei explicitly approved
       a new one).
