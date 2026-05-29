@@ -23,126 +23,17 @@ WeChat requirements recap:
 
 from __future__ import annotations
 
-import io
-import os
 import sys
-import time
 from pathlib import Path
 
-from dotenv import load_dotenv
-from google import genai
-from google.genai import types
 from PIL import Image
 
-MODEL = "gemini-3.1-flash-image-preview"
-
-ENV_CANDIDATES = [
-    Path.home() / ".env",
-    Path.home() / ".env.local",
-    Path.cwd() / ".env",
-    Path.cwd() / ".env.local",
-]
-
-
-def _load_env() -> None:
-    for p in ENV_CANDIDATES:
-        if p.exists():
-            load_dotenv(p)
-
-
-def _is_vertex() -> bool:
-    return bool(os.environ.get("VERTEX_AI_KEY")) or os.environ.get(
-        "GOOGLE_GENAI_USE_VERTEXAI", ""
-    ).lower() in ("1", "true", "yes")
-
-
-def _make_client() -> genai.Client:
-    """Resolve auth: Vertex Express → Vertex ADC → AI Studio."""
-    _load_env()
-    if vkey := os.environ.get("VERTEX_AI_KEY"):
-        return genai.Client(vertexai=True, api_key=vkey)
-    if os.environ.get("GOOGLE_GENAI_USE_VERTEXAI", "").lower() in ("1", "true", "yes"):
-        return genai.Client(
-            vertexai=True,
-            project=os.environ.get("GOOGLE_CLOUD_PROJECT"),
-            location=os.environ.get("GOOGLE_CLOUD_LOCATION", "us-central1"),
-        )
-    key = (
-        os.environ.get("GOOGLE_AI_STUDIO_API_KEY")
-        or os.environ.get("GEMINI_API_KEY")
-        or os.environ.get("GOOGLE_API_KEY")
-    )
-    if not key:
-        raise EnvironmentError(
-            "No API key. Set one of: VERTEX_AI_KEY, GOOGLE_AI_STUDIO_API_KEY, "
-            "GEMINI_API_KEY, GOOGLE_API_KEY; or GOOGLE_GENAI_USE_VERTEXAI=true "
-            "with GOOGLE_CLOUD_PROJECT/LOCATION."
-        )
-    return genai.Client(api_key=key)
-
-
-def _fit_crop(img: Image.Image, w: int, h: int) -> Image.Image:
-    """Scale-to-fill then center-crop to exact (w, h)."""
-    src_w, src_h = img.size
-    scale = max(w / src_w, h / src_h)
-    nw, nh = int(src_w * scale), int(src_h * scale)
-    img = img.resize((nw, nh), Image.LANCZOS)
-    x, y = (nw - w) // 2, (nh - h) // 2
-    return img.crop((x, y, x + w, y + h))
+sys.path.insert(0, str(Path(__file__).parent))
+from generate_banner import PLATFORMS, generate_banner as _gen_banner
 
 
 def generate_banner(char_ref: Image.Image, theme: str) -> Image.Image:
-    """Call Gemini to produce a 750×400 banner; retry on transient errors."""
-    client = _make_client()
-    prompt = (
-        f"Generate a wide horizontal banner image featuring 3 chibi versions of this character "
-        f"in a {theme} themed scene, each showing a different fun expression and pose. "
-        f"Background: colorful vivid pastel tones with {theme} decorative elements — "
-        f"NOT white, NOT transparent. "
-        f"Art style: LINE/WeChat sticker chibi, extreme super-deformed 2-head body ratio, "
-        f"thick bold black ink outline, flat cel shading, mochi chibi aesthetic. "
-        f"No text, no captions. Rich storytelling wide cinematic composition."
-    )
-    cfg = types.GenerateContentConfig(
-        response_modalities=["TEXT", "IMAGE"],
-        image_config=types.ImageConfig(aspect_ratio="16:9"),
-    )
-    for attempt in range(6):
-        try:
-            resp = client.models.generate_content(
-                model=MODEL,
-                contents=[prompt, char_ref],
-                config=cfg,
-            )
-        except Exception as exc:
-            msg = str(exc)
-            transient = any(s in msg for s in (
-                "503", "UNAVAILABLE", "429", "RESOURCE_EXHAUSTED",
-                "ConnectError", "SSL", "EOF", "ConnectionError", "TimeoutError",
-            ))
-            if transient and attempt < 5:
-                wait = 2 ** attempt * 5
-                print(f"  [{attempt+1}/6] transient error, retry in {wait}s: {msg[:80]}")
-                time.sleep(wait)
-                continue
-            raise
-
-        for part in resp.parts or []:
-            if img := part.as_image():
-                data = getattr(img, "image_bytes", None)
-                if data is None:
-                    tmp = Path("/tmp/_banner_tmp.png")
-                    img.save(tmp)
-                    data = tmp.read_bytes()
-                    tmp.unlink(missing_ok=True)
-                raw = Image.open(io.BytesIO(data)).convert("RGB")
-                return _fit_crop(raw, 750, 400)
-
-        finish = [getattr(c, "finish_reason", None) for c in (getattr(resp, "candidates", None) or [])]
-        print(f"  [{attempt+1}/6] no image; finish={finish}")
-        time.sleep(3)
-
-    raise RuntimeError("banner generation failed after 6 attempts")
+    return _gen_banner(char_ref, theme, PLATFORMS["wechat"])
 
 
 def make_cover(cell: Image.Image) -> Image.Image:

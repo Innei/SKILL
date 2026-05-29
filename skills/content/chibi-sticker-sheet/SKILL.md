@@ -318,6 +318,34 @@ uv run generate_extras.py <sticker_dir> <char_ref_image> "<theme hint>"
 - Cover: transparent bg; no white outline; avoid over-cropping (half/full body preferred)
 - Icon: transparent bg; head-only, no square border; must differ across sets
 
+## Multi-Platform Banner
+
+`scripts/generate_banner.py` produces a standalone banner for any registered platform — independent of the WeChat extras flow. WeChat itself is one preset; Twitter/X is another. New platforms are added by appending to the `PLATFORMS` dict.
+
+```bash
+uv run generate_banner.py <char_ref> "<theme>" <out_path> --platform twitter
+```
+
+| Platform | Size | Gemini AR | Crop |
+|---|---|---|---|
+| `wechat` | 750×400 | `16:9` | minimal (~6% vertical trim) |
+| `twitter` | 1500×500 | `16:9` | aggressive (middle 56% only) |
+
+Each preset is a `Platform(width, height, aspect_ratio, composition_hint)`. The hint is appended to the prompt and is the place to encode platform-specific safe-zone layout (avatar overlay, mobile crop, letterbox bars). WeChat needs no hint; Twitter needs explicit letterbox awareness — see below.
+
+### Letterbox Lesson (Extreme Aspect Ratios)
+
+Gemini 3 image preview only supports a fixed aspect-ratio menu (`1:1`, `4:3`, `3:4`, `16:9`, `9:16`). For ratios more extreme than 16:9 (Twitter 3:1, LinkedIn 4:1) we generate at 16:9 then center-crop the middle band. The naive prompt strategy fails in two opposite ways:
+
+| Prompt told Gemini | Failure mode |
+|---|---|
+| "Subjects must fit inside the 22%–78% band" | Gemini adds safety margin → chibis end up at ~35%–65% → tiny in final frame |
+| "Subjects must fill the canvas vertically" | Gemini puts hair at 5% of source canvas → heads land in the cropped-off top 22% → decapitation |
+
+The fix is to tell Gemini that the top/bottom 22% are off-screen letterbox bars (showing only background overflow), and place subjects in the middle 25%–75% band of the source canvas. This produces full vertical fill in the final visible frame plus a 3% safety margin against the crop line on each side.
+
+The Twitter preset's `composition_hint` encodes this verbatim. When adding a new extreme-aspect platform (e.g. LinkedIn 4:1 → middle 44% of 16:9 source), compute the letterbox percentages from the math and follow the same structure.
+
 ## Verification
 
 ```bash
