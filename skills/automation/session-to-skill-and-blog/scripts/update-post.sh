@@ -14,4 +14,12 @@ SLUG="$1"
 SRC="$2"
 [ -f "$SRC" ] || { echo "error: $SRC not found" >&2; exit 1; }
 
-mxs post update "$SLUG" --file "$SRC" --open --silent
+# Strip <state> before updating: envelopes are reused from create (where
+# <state>draft</state> is the norm), and sending it would flip an already
+# published post back to draft, making it vanish for readers. Publish state
+# changes go through `mxs post publish|unpublish` only. (Newer mxs ignores
+# envelope state on update, but the installed binary may predate that guard.)
+SAFE="$(mktemp -t mxs-update).xml"
+sed '/<state>[^<]*<\/state>/d' "$SRC" > "$SAFE"
+
+mxs post update "$SLUG" --file "$SAFE" --open --silent

@@ -226,6 +226,36 @@ bash "$S/get-post.sh"   <slug> > /tmp/blog/article.xml
 bash "$S/update-post.sh" <slug> /tmp/blog/article.xml
 ```
 
+Editing an already-published post: prefer stage/apply when the installed
+`mxs` supports it (`mxs post stage --help`) — the live post stays untouched
+until Innei confirms:
+
+```bash
+mxs post stage <slug> --file /tmp/blog/article.xml   # readers see nothing
+# Innei reviews (local preview / admin), then approves:
+mxs post apply <slug>                                # the confirm step
+```
+
+Fallback on older `mxs`: `update-post.sh` (it strips `<state>` so the post
+at least never unpublishes, but changes go live immediately).
+
+### Images and Excalidraw attachments
+
+When the installed `mxs` has the `file` command group (`mxs file --help`),
+upload assets instead of inlining or hot-linking:
+
+```bash
+mxs file upload ./shot.png --type image --silent   # → { url, name }
+mxs file upload ./diagram.excalidraw --type file --silent
+```
+
+- Images: reference the returned URL via `<img src="..." />`.
+- Excalidraw: the `<excalidraw>` body accepts a bare URL (remote snapshot) —
+  `<excalidraw>https://…/diagram.excalidraw</excalidraw>` — instead of inline
+  CDATA JSON. Prefer remote for large scenes; keep small scenes inline so the
+  article stays self-contained.
+- Manage assets with `mxs file list|delete|rename [--type <t>]`.
+
 Paste the final URL (`${MXS_API_URL}/posts/<category>/<slug>`) back into
 the originating session as the asset-ization receipt.
 
@@ -246,7 +276,9 @@ the originating session as the asset-ization receipt.
 | Skill written in Chinese                             | Skill in English (artifact). Blog in Innei's chosen language (default Chinese).      |
 | `--state publish` on `post create`                   | Always create as draft. `mxs post publish <slug>` only after Innei approves preview. |
 | Re-running `post create` to edit                     | Round-trip: `get-post.sh` → edit → `update-post.sh`.                                 |
+| Updating a published post with the create envelope   | Its `<state>draft</state>` unpublishes the live post — readers see it vanish. `update-post.sh` now strips `<state>` before sending; publish state changes only via `mxs post publish\|unpublish`. |
 | LiteXML body passed straight to `mxs --file`         | Wrap in `references/envelope.template.xml` first.                                    |
+| Previewing a bare LiteXML fragment (no `<doc>`)      | Inter-block whitespace becomes root-level text nodes → Lexical error #282 in the rendered HTML. Keep authoring sources `<doc>`-wrapped. mxs wraps server-side, so the published post is unaffected. |
 | Hand-writing `<summary>`                             | Omit. Server AI auto-generates and may overwrite.                                    |
 | Picking `<category>` without checking what exists    | `mxs category list --output llm` first; reuse existing slug.                         |
 | Auto-creating a new category                         | Requires explicit second confirmation from Innei before `mxs category create`.       |
