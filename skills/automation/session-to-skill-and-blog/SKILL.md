@@ -8,7 +8,7 @@ description: >
   "productize this session"、"publish this as a skill and a writeup".
 metadata:
   author: innei
-  version: "0.9.0"
+  version: "0.10.0"
 ---
 
 # session-to-skill-and-blog
@@ -36,6 +36,7 @@ actual work:
 | [`references/node-usage.md`](./references/node-usage.md)   | Before using any extension node — deletion test, escalation ladder, scenario → node map, `<dynamic>` catalog rule, budgets, anti-patterns. |
 | [`references/visuals.md`](./references/visuals.md)         | When planning diagrams or uploading image assets — Excalidraw vs Mermaid, palette, ≥3-diagram rule, `mxs file upload`. |
 | [`references/publish-flow.md`](./references/publish-flow.md) | When previewing / creating / editing the post — `mxs preview`, draft create, round-trip, stage/apply. |
+| [`references/widget-template/`](./references/widget-template/DESIGN.md) | When authoring a new `<dynamic>` widget — Yohaku-language UI/UX guide (`DESIGN.md`) + working vanilla skeleton (`template.mjs`, self-contained tokens, protocol plumbing). |
 | `references/envelope.template.xml`                          | Copy as the post envelope before pasting the LiteXML body.                                       |
 
 For LiteXML tag syntax itself, load the litexml-authoring skill (fresh via

@@ -84,8 +84,9 @@ gimmicks; every widget must come from the catalog (below); and a widget
 that merely *displays* without meaningful input is a figure wearing a
 costume — use `<img>`/`<excalidraw>` instead. When the catalog lacks the
 right widget for a scenario above, say so to Innei — that is the signal to
-commission a new cataloged component, not to force a static workaround
-silently.
+commission a new cataloged component (start from
+`widget-template/template.mjs` + `widget-template/DESIGN.md`), not to force
+a static workaround silently.
 
 ## Interactive embeds (`<dynamic>`) — catalog-gated
 
