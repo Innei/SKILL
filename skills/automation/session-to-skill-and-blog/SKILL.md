@@ -190,7 +190,7 @@ parameter explorer, step-through demo) via the `<dynamic>` tag. It is
 components listed in the blog's catalog may be referenced. Check first:
 
 ```bash
-curl -fsS "${MXS_API_URL}/objects/file/dynamic-widgets-catalog.json"
+curl -fsS "${MXS_API_URL}/s/dynamic-widgets-catalog?_t=$(date +%s)"
 ```
 
 - Catalog resolves → pick a matching entry, use its exact `url` and
@@ -298,7 +298,7 @@ the originating session as the asset-ization receipt.
 | Updating a published post with the create envelope   | Its `<state>draft</state>` unpublishes the live post — readers see it vanish. `update-post.sh` now strips `<state>` before sending; publish state changes only via `mxs post publish\|unpublish`. |
 | LiteXML body passed straight to `mxs --file`         | Wrap in `references/envelope.template.xml` first.                                    |
 | Previewing a bare LiteXML fragment (no `<doc>`)      | Inter-block whitespace becomes root-level text nodes → Lexical error #282 in the rendered HTML. Keep authoring sources `<doc>`-wrapped. mxs wraps server-side, so the published post is unaffected. |
-| `<dynamic>` with an invented or adapted URL          | Catalog-gated: only URLs from `${MXS_API_URL}/objects/file/dynamic-widgets-catalog.json`. No catalog → no `<dynamic>`; degrade to `<poll>`/`<excalidraw>`/`<video>`. |
+| `<dynamic>` with an invented or adapted URL          | Catalog-gated: only URLs from `${MXS_API_URL}/s/dynamic-widgets-catalog`. No catalog → no `<dynamic>`; degrade to `<poll>`/`<excalidraw>`/`<video>`. |
 | Hand-writing `<summary>`                             | Omit. Server AI auto-generates and may overwrite.                                    |
 | Picking `<category>` without checking what exists    | `mxs category list --output llm` first; reuse existing slug.                         |
 | Auto-creating a new category                         | Requires explicit second confirmation from Innei before `mxs category create`.       |
