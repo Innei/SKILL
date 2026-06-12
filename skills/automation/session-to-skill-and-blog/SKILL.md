@@ -8,7 +8,7 @@ description: >
   "productize this session"、"publish this as a skill and a writeup".
 metadata:
   author: innei
-  version: "0.7.0"
+  version: "0.8.0"
 ---
 
 # session-to-skill-and-blog
@@ -182,6 +182,25 @@ diagrams** — one for the high-level pipeline, one for the architecture
 overview, one for the most important decision or chain narrated in prose.
 More is fine. Use Mermaid only when the diagram type column above says so.
 
+#### Interactive embeds (`<dynamic>`)
+
+Since haklex v0.25.1 a post can embed an interactive ESM widget (quiz,
+parameter explorer, step-through demo) via the `<dynamic>` tag. It is
+**catalog-gated**: the URL executes code in readers' browsers, so only
+components listed in the blog's catalog may be referenced. Check first:
+
+```bash
+curl -fsS "${MXS_API_URL}/objects/file/dynamic-widgets-catalog.json"
+```
+
+- Catalog resolves → pick a matching entry, use its exact `url` and
+  recommended `initial-height`, validate props against its `propsSchema`.
+  Full tag rules live in the litexml-authoring reference
+  (`nodes-extensions.md` → "Embedded interactive components").
+- 404 / empty → the blog has no widgets deployed yet. Do **not** emit
+  `<dynamic>`; fall back to `<poll>` (votes), `<excalidraw>` (diagrams),
+  or `<video>` (demos), and mention the gap to Innei.
+
 **Structure:** opening (task + sub-tasks + top URL banner) → one section
 per "act" mirroring the skill's steps → each act follows symptom →
 investigation → fix → why → closing (skill tree listing + bottom URL CTA).
@@ -279,6 +298,7 @@ the originating session as the asset-ization receipt.
 | Updating a published post with the create envelope   | Its `<state>draft</state>` unpublishes the live post — readers see it vanish. `update-post.sh` now strips `<state>` before sending; publish state changes only via `mxs post publish\|unpublish`. |
 | LiteXML body passed straight to `mxs --file`         | Wrap in `references/envelope.template.xml` first.                                    |
 | Previewing a bare LiteXML fragment (no `<doc>`)      | Inter-block whitespace becomes root-level text nodes → Lexical error #282 in the rendered HTML. Keep authoring sources `<doc>`-wrapped. mxs wraps server-side, so the published post is unaffected. |
+| `<dynamic>` with an invented or adapted URL          | Catalog-gated: only URLs from `${MXS_API_URL}/objects/file/dynamic-widgets-catalog.json`. No catalog → no `<dynamic>`; degrade to `<poll>`/`<excalidraw>`/`<video>`. |
 | Hand-writing `<summary>`                             | Omit. Server AI auto-generates and may overwrite.                                    |
 | Picking `<category>` without checking what exists    | `mxs category list --output llm` first; reuse existing slug.                         |
 | Auto-creating a new category                         | Requires explicit second confirmation from Innei before `mxs category create`.       |
