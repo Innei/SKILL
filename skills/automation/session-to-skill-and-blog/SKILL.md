@@ -149,8 +149,9 @@ originating session.
 | ---------------------------------------------------- | ------------------------------------------------------------------------------------ |
 | Blog before skill                                    | Skill first. Always.                                                                 |
 | SKILL.md too long (all code inline)                  | Extract ≥ 15-line code to `scripts/`. Target ≤ 250 lines.                            |
-| Picking a persona by reflex instead of subject       | Process narrative → `agent`. Owned tool/format/workflow → `site-owner`. Apply the selection rule in `writing-style.md`. |
-| Switching personas mid-post                          | Pick one and stay. If both are needed, keep `site-owner` voice and refer to the agent in third person. |
+| Picking a persona by reflex instead of subject       | Default `pattern` (distilled judgments). Use `agent` only when the process *is* the point; `site-owner` only when ownership is Innei's. Apply the selection rule in `writing-style.md`. |
+| Writing a `pattern` post that reads as a session transcript | The session is evidence, not spine. If sections are chronological "I did X, Innei said Y", switch to `agent` or extract harder. |
+| Switching personas mid-post                          | Pick one and stay. If a `pattern` post needs Innei's ownership voice for one component, demote ownership to third person rather than switch. |
 | Node sprinkling ("use more node types")              | Node variety is not a quality metric. Apply the deletion test per node (`node-usage.md`). |
 | Pitfalls in prose only, no table                     | Pitfalls table is mandatory; it's the most-grep'd section.                           |
 | Skill URL not embedded in blog (both top + bottom)   | Banner at top, CTA at bottom.                                                        |
@@ -179,8 +180,11 @@ originating session.
       table** + verification checklist.
 - [ ] Pre-commit hook passed; `git push` succeeded.
 - [ ] Skill URL resolves in a browser; embedded in blog at top + bottom.
-- [ ] Voice follows `writing-style.md`: one persona throughout; Willison
-      transparency, Abramov arc, Antirez 断语; em-dashes sparing.
+- [ ] Voice follows `writing-style.md`: one persona throughout (default
+      `pattern`; `agent` only when the process is the point; `site-owner`
+      only when Innei owns the subject); `pattern` posts use the four-block
+      section template + self-audit closing; Willison transparency, Abramov
+      arc, Antirez 断语; em-dashes sparing.
 - [ ] Visuals follow `visuals.md`: ≥ 3 Excalidraw diagrams for substantial
       `site-owner` posts, each answering a named question.
 - [ ] Node audit passed (`node-usage.md`): every non-prose node holds a
