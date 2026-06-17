@@ -68,7 +68,8 @@ S="$(realpath ~/.claude/skills/session-to-skill-and-blog)/scripts"
 | `resolve-skill-repo.sh` | Print absolute path to the SKILL repo (config-driven, with fallback).                           |
 | `scaffold-skill.sh`     | Create dir + stub SKILL.md + README row (alphabetical) + both flat symlinks; `git add` staged.  |
 | `load-litexml.sh`       | `degit` the latest `litexml-authoring` subtree (SKILL.md + `references/`) into `~/.cache/`.     |
-| `publish-post.sh`       | `mxs post create` as draft, with `aiGen=2`, `--open` admin preview, `--silent` response.        |
+| `push-skill.sh`         | Idempotent `mxs snippet create\|update --type skill` from a SKILL.md path. Emits the snowflake id on stdout. |
+| `publish-post.sh`       | `mxs post create` as draft, with `aiGen=2`, `--open` admin preview, `--silent` response; optional `--skill-id <id>` repeated arg threads ids into `meta.skillIds`. |
 | `get-post.sh`           | `mxs post get <slug> --output xml` — round-trip step 1.                                         |
 | `update-post.sh`        | `mxs post update <slug> --file …` — round-trip step 2.                                          |
 
@@ -77,9 +78,10 @@ S="$(realpath ~/.claude/skills/session-to-skill-and-blog)/scripts"
 ```text
 [1] Inventory session
 [2] Scaffold + author SKILL.md
-[3] Commit + push skill
-[4] Write blog
-[5] Publish via mxs
+[3] Commit + push skill (to GitHub)
+[4] Push skill to mx-core (returns snowflake id)
+[5] Write blog
+[6] Publish via mxs with --skill-id
 ```
 
 ### [1] Inventory
@@ -111,7 +113,26 @@ The pre-commit hook enforces: README row exists; both flat symlinks
 present and resolved. Skill URL (used at blog top + bottom):
 `https://github.com/Innei/SKILL/tree/main/skills/<domain>/<skill-name>`
 
-### [4] Write the blog
+### [4] Push skill to mx-core
+
+The blog post will reference this skill via `meta.skillIds`. Push the
+SKILL.md to mx-core's snippet store so the reader-facing `<SkillCardList>`
+on the article page has something to render and the public raw URL
+(`${MXS_API_URL}/api/v3/s/sk/<name>`) exists.
+
+```bash
+SKILL_ID=$(bash "$S/push-skill.sh" "$REPO/skills/<domain>/<skill-name>/SKILL.md")
+```
+
+The script is idempotent — re-runs update the snippet at
+`reference=skill, name=<frontmatter-name>` instead of creating a duplicate.
+Capture the returned id; step [6] threads it through `publish-post.sh`.
+
+If the skill never reaches mx-core, the blog still publishes — readers
+just won't see the install card. That trade-off is fine when mx-core is
+offline; do not block the blog on it.
+
+### [5] Write the blog
 
 Load [`writing-style.md`](./references/writing-style.md) (persona + voice),
 [`node-usage.md`](./references/node-usage.md) (which nodes the content
@@ -135,13 +156,14 @@ LITEXML_CACHE=$(bash "$S/load-litexml.sh")
 
 Plain Markdown is fine when no haklex-specific tags are needed.
 
-### [5] Publish via `mxs`
+### [6] Publish via `mxs`
 
 Follow [`publish-flow.md`](./references/publish-flow.md): preview →
-create as **draft** (`publish-post.sh`) → Innei approves → `mxs post
-publish <slug>`. Edits round-trip via `get-post.sh` / `update-post.sh`;
-published posts prefer `stage` / `apply`. Paste the final URL back into the
-originating session.
+create as **draft** with the skill id from step [4]
+(`bash "$S/publish-post.sh" /tmp/blog/article.xml --skill-id "$SKILL_ID"`) →
+Innei approves → `mxs post publish <slug>`. Edits round-trip via
+`get-post.sh` / `update-post.sh`; published posts prefer `stage` /
+`apply`. Paste the final URL back into the originating session.
 
 ## Common pitfalls
 
@@ -161,6 +183,8 @@ originating session.
 | `pnpm --silent litexml …` from a haklex worktree     | `mxs preview <file>` — envelope-aware, no local clone, opens browser by default.     |
 | Skill written in Chinese                             | Skill in English (artifact). Blog in Innei's chosen language (default Chinese).      |
 | `--state publish` on `post create`                   | Always create as draft. `mxs post publish <slug>` only after Innei approves preview. |
+| Skipping `push-skill.sh` and embedding only the GitHub URL | The blog `<SkillCardList>` reads `meta.skillIds`. Without `--skill-id`, the install card never renders even if the GitHub link is right. |
+| Hand-writing `--meta '{"aiGen":2,"skillIds":[…]}'`   | Use `publish-post.sh --skill-id <id>`; it jq-assembles meta and survives multiple ids without quoting bugs. |
 | Re-running `post create` to edit                     | Round-trip: `get-post.sh` → edit → `update-post.sh`.                                 |
 | Updating a published post with the create envelope   | Its `<state>draft</state>` unpublishes the live post — readers see it vanish. `update-post.sh` strips `<state>`; publish state changes only via `mxs post publish\|unpublish`. |
 | LiteXML body passed straight to `mxs --file`         | Wrap in `references/envelope.template.xml` first.                                    |
@@ -179,6 +203,8 @@ originating session.
 - [ ] SKILL.md has frontmatter + scope + inputs + workflow + **pitfalls
       table** + verification checklist.
 - [ ] Pre-commit hook passed; `git push` succeeded.
+- [ ] `bash "$S/push-skill.sh" …` returned a snowflake id; the public URL
+      `${MXS_API_URL}/api/v3/s/sk/<name>` resolves to the raw markdown.
 - [ ] Skill URL resolves in a browser; embedded in blog at top + bottom.
 - [ ] Voice follows `writing-style.md`: one persona throughout (default
       `pattern`; `agent` only when the process is the point; `site-owner`

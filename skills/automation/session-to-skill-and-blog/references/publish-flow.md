@@ -22,14 +22,20 @@ mxs auth whoami                      # confirm; if not, mxs auth login
 mxs category list --output llm       # MUST reuse an existing category slug
 cp "$(dirname "$S")/references/envelope.template.xml" /tmp/blog/article.xml
 # edit envelope: fill <title>/<slug>/<category>/<tags>, paste LiteXML body
-bash "$S/publish-post.sh" /tmp/blog/article.xml
+
+# Optional: push the SKILL.md to mx-core first so the blog can attach it.
+SKILL_ID=$(bash "$S/push-skill.sh" "$REPO/skills/<domain>/<skill-name>/SKILL.md")
+
+bash "$S/publish-post.sh" /tmp/blog/article.xml --skill-id "$SKILL_ID"
 # Innei previews in the admin tab opened by --open; when approved:
 mxs post publish <slug>
 ```
 
-`publish-post.sh` creates as draft with `aiGen=2` and `--open`. Never
-`--state publish` on create; never hand-write `<summary>` (server AI
-generates it).
+`publish-post.sh` creates as draft with `aiGen=2` and `--open`. With one
+or more `--skill-id <id>` args it jq-assembles `meta.skillIds` so the
+admin SkillPicker / public article card list resolve the attached
+skill(s). Never `--state publish` on create; never hand-write
+`<summary>` (server AI generates it).
 
 ## Edit a draft (round-trip)
 
