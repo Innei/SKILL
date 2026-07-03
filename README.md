@@ -60,15 +60,6 @@ SKILL/
 
 | Skill | Purpose |
 | ----- | ------- |
-| [`capture-output-via-sidechannel`](skills/infrastructure/capture-output-via-sidechannel/SKILL.md) | Capture stdout/stderr from runners/CI/containers when log retrieval is unavailable, by persisting output to a readable data store |
-| [`ci-smoke-needs-real-deps`](skills/infrastructure/ci-smoke-needs-real-deps/SKILL.md) | Fix CI release smoke tests that fail after a stack migration by aligning service containers and env vars with ci.yml |
-| [`cloudflare-r2-upload`](skills/infrastructure/cloudflare-r2-upload/SKILL.md) | Upload files/batches to Cloudflare R2 via `wrangler`, resolve multi-account context, set MIME, and verify public URLs |
-| [`dokploy-api-cli`](skills/infrastructure/dokploy-api-cli/SKILL.md) | Operate Dokploy deployments via REST API — create/update/deploy services, switch sources, script redeploys |
-| [`dokploy-internal-oneshot`](skills/infrastructure/dokploy-internal-oneshot/SKILL.md) | Run ephemeral one-shot tasks inside a Dokploy project's internal network without exposing services publicly |
-| [`dokploy-traefik-traffic-split`](skills/infrastructure/dokploy-traefik-traffic-split/SKILL.md) | Canary two backends on one Dokploy domain with path-aware weighted+sticky Traefik routing; covers SPA asset trap, dry-run on canary host, and instant rollback |
-| [`mx-space-remote-db-access`](skills/infrastructure/mx-space-remote-db-access/SKILL.md) | Remote `mx-space` MongoDB inspection, guarded updates, and verification through `ssh → docker exec → mongosh` |
-| [`mx-space-remote-translation-audit`](skills/infrastructure/mx-space-remote-translation-audit/SKILL.md) | Remote translation auditing — coverage checks, freshness interpretation, and route-level verification |
-| [`vless-reality-aws-lightsail`](skills/infrastructure/vless-reality-aws-lightsail/SKILL.md) | End-to-end VLESS+Reality+Vision on AWS Lightsail: Xray server with publicly-trusted SNI selection, Alpine LXC sing-box SOCKS5 bridge for LAN clients, and Surge proxy/policy-group wiring |
 
 ### Research
 
@@ -76,7 +67,6 @@ SKILL/
 
 | Skill | Purpose |
 | ----- | ------- |
-| [`chat-export-report`](skills/research/chat-export-report/SKILL.md) | Analyze massive exported chat logs (WeChat / Telegram / iMessage / QQ) and produce layered, drill-downable reports grounded in original quotes |
 
 ### Content
 
@@ -84,10 +74,6 @@ SKILL/
 
 | Skill | Purpose |
 | ----- | ------- |
-| [`acg-character-settei`](skills/content/acg-character-settei/SKILL.md) | Generate ACG character settei sheet (multi-view + expression + callouts) from a reference image via Gemini |
-| [`chibi-sticker-sheet`](skills/content/chibi-sticker-sheet/SKILL.md) | Generate a 4×8 chibi sticker sheet from a character reference via Gemini, with alpha keying and 1:1 cell slicing |
-| [`gemini-image-generation`](skills/content/gemini-image-generation/SKILL.md) | Gemini text-to-image and image-to-image generation — style transfer, character consistency, watermark removal |
-| [`gemini-seo-image-assets`](skills/content/gemini-seo-image-assets/SKILL.md) | Generate favicon/OG artwork via Gemini, export icon variants, and wire SEO metadata |
 
 ## Agent Integration
 
@@ -132,3 +118,18 @@ git config core.hooksPath .githooks
 ```
 
 If you must bypass it for a non-skill commit, use `git commit --no-verify`.
+| [`acg-character-settei`](skills/content/acg-character-settei/SKILL.md) | Generate ACG character settei sheet (multi-view + expression + callouts) from a reference image via Gemini |
+| [`capture-output-via-sidechannel`](skills/infrastructure/capture-output-via-sidechannel/SKILL.md) | Capture stdout/stderr from runners/CI/containers when log retrieval is unavailable, by persisting output to a readable data store |
+| [`chat-export-report`](skills/research/chat-export-report/SKILL.md) | Analyze massive exported chat logs (WeChat / Telegram / iMessage / QQ) and produce layered, drill-downable reports grounded in original quotes |
+| [`chibi-sticker-sheet`](skills/content/chibi-sticker-sheet/SKILL.md) | Generate a 4×8 chibi sticker sheet from a character reference via Gemini, with alpha keying and 1:1 cell slicing |
+| [`ci-smoke-needs-real-deps`](skills/infrastructure/ci-smoke-needs-real-deps/SKILL.md) | Fix CI release smoke tests that fail after a stack migration by aligning service containers and env vars with ci.yml |
+| [`cloudflare-r2-upload`](skills/infrastructure/cloudflare-r2-upload/SKILL.md) | Upload files/batches to Cloudflare R2 via `wrangler`, resolve multi-account context, set MIME, and verify public URLs |
+| [`dokploy-api-cli`](skills/infrastructure/dokploy-api-cli/SKILL.md) | Operate Dokploy deployments via REST API — create/update/deploy services, switch sources, script redeploys |
+| [`dokploy-internal-oneshot`](skills/infrastructure/dokploy-internal-oneshot/SKILL.md) | Run ephemeral one-shot tasks inside a Dokploy project's internal network without exposing services publicly |
+| [`dokploy-traefik-traffic-split`](skills/infrastructure/dokploy-traefik-traffic-split/SKILL.md) | Canary two backends on one Dokploy domain with path-aware weighted+sticky Traefik routing; covers SPA asset trap, dry-run on canary host, and instant rollback |
+| [`gemini-image-generation`](skills/content/gemini-image-generation/SKILL.md) | Gemini text-to-image and image-to-image generation — style transfer, character consistency, watermark removal |
+| [`gemini-seo-image-assets`](skills/content/gemini-seo-image-assets/SKILL.md) | Generate favicon/OG artwork via Gemini, export icon variants, and wire SEO metadata |
+| [`mx-space-remote-db-access`](skills/infrastructure/mx-space-remote-db-access/SKILL.md) | Remote `mx-space` MongoDB inspection, guarded updates, and verification through `ssh → docker exec → mongosh` |
+| [`mx-space-remote-translation-audit`](skills/infrastructure/mx-space-remote-translation-audit/SKILL.md) | Remote translation auditing — coverage checks, freshness interpretation, and route-level verification |
+| [`nextjs-rsc-to-react-router-v8-migration`](skills/infrastructure/nextjs-rsc-to-react-router-v8-migration/SKILL.md) | Migrate a Next.js App-Router / RSC site to React Router v8 for CDN-cacheable SSR under multi-locale cost pressure. |
+| [`vless-reality-aws-lightsail`](skills/infrastructure/vless-reality-aws-lightsail/SKILL.md) | End-to-end VLESS+Reality+Vision on AWS Lightsail: Xray server with publicly-trusted SNI selection, Alpine LXC sing-box SOCKS5 bridge for LAN clients, and Surge proxy/policy-group wiring |
