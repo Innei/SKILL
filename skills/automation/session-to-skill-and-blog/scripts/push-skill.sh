@@ -1,8 +1,11 @@
 #!/usr/bin/env bash
-# Push a SKILL.md to the mx-space backend as a snippet of type=skill.
+# Push a SKILL.md to the mx-space backend as a snippet of type=skill,
+# plus every sibling asset file in the skill directory (references/,
+# scripts/, etc.) as type=text snippets under the same sk/<name>/ dir —
+# the backend only accepts type=skill for paths ending in /SKILL.md.
 # Idempotent: `mxs snippet put` upserts by path, so re-runs update the
-# existing snippet at sk/<frontmatter-name>/SKILL.md. Emits ONLY the
-# snowflake id on stdout (suitable for command substitution).
+# existing snippets. Emits ONLY the SKILL.md snowflake id on stdout
+# (suitable for command substitution); asset progress goes to stderr.
 #
 # The canonical snippet path root for skills is `sk/` — the backend
 # normalizes skill-type snippets to it and the Yohaku web /skills/<name>
@@ -61,5 +64,12 @@ if [ -z "$ID" ]; then
   echo "error: failed to capture skill id" >&2
   exit 1
 fi
+
+SKILL_DIR=$(cd "$(dirname "$SRC")" && pwd)
+while IFS= read -r ASSET; do
+  REL=${ASSET#"$SKILL_DIR"/}
+  echo "pushing asset: $REL" >&2
+  mxs snippet put "sk/$NAME/$REL" --type text --file "$ASSET" --json >/dev/null
+done < <(find "$SKILL_DIR" -type f ! -name 'SKILL.md' ! -name '.*' | sort)
 
 printf '%s\n' "$ID"

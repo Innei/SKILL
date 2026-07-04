@@ -68,7 +68,7 @@ S="$(realpath ~/.claude/skills/session-to-skill-and-blog)/scripts"
 | `resolve-skill-repo.sh` | Print absolute path to the SKILL repo (config-driven, with fallback).                           |
 | `scaffold-skill.sh`     | Create dir + stub SKILL.md + README row (alphabetical) + both flat symlinks; `git add` staged.  |
 | `load-litexml.sh`       | `degit` the latest `litexml-authoring` subtree (SKILL.md + `references/`) into `~/.cache/`.     |
-| `push-skill.sh`         | Idempotent `mxs snippet put sk/<name>/SKILL.md --type skill` from a SKILL.md path. Emits the snowflake id on stdout. |
+| `push-skill.sh`         | Idempotent `mxs snippet put sk/<name>/SKILL.md --type skill` from a SKILL.md path, plus every sibling asset file (`references/`, `scripts/`, …) as `--type text` under the same dir. Emits the snowflake id on stdout. |
 | `publish-post.sh`       | `mxs post create` as draft, with `aiGen=2`, `--open` admin preview, `--silent` response; optional `--skill-id <id>` repeated arg threads ids into `meta.skillIds`. |
 | `get-post.sh`           | `mxs post get <slug> --output xml` — round-trip step 1.                                         |
 | `update-post.sh`        | `mxs post update <slug> --file …` — round-trip step 2.                                          |
@@ -129,6 +129,11 @@ update the snippet at `sk/<frontmatter-name>/SKILL.md` instead of creating
 a duplicate. `sk/` is the canonical skill root: the backend normalizes
 skill-type snippets to it, and Yohaku's `/skills/<name>` pages read from
 `/s/sk/<name>/...`.
+Sibling asset files (`references/*.md`, `scripts/*`, anything non-hidden
+next to SKILL.md) are pushed as `--type text` snippets under the same
+`sk/<name>/` dir — the backend rejects `--type skill` for any path not
+ending in `/SKILL.md`, and without them relative links inside SKILL.md
+404 on the public site.
 Capture the returned id; step [6] threads it through `publish-post.sh`.
 
 If the skill never reaches mx-core, the blog still publishes — readers
