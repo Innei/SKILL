@@ -1,11 +1,12 @@
 #!/usr/bin/env bash
 # Push a SKILL.md to the mx-space backend as a snippet of type=skill.
-# Idempotent: if a snippet already exists at reference=skill, name=<frontmatter
-# name>, this updates it; otherwise it creates one. Emits ONLY the snowflake id
-# on stdout (suitable for command substitution).
+# Idempotent: `mxs snippet put` upserts by path, so re-runs update the
+# existing snippet at sk/<frontmatter-name>/SKILL.md. Emits ONLY the
+# snowflake id on stdout (suitable for command substitution).
 #
-# Requires `mxs` ≥ the version that supports `--type skill` (SNIPPET_TYPES
-# list in packages/cli/src/cli/snippet/_flags.ts).
+# The canonical snippet path root for skills is `sk/` — the backend
+# normalizes skill-type snippets to it and the Yohaku web /skills/<name>
+# pages read from `/s/sk/<name>/...`.
 #
 # Usage: push-skill.sh <SKILL.md>
 set -euo pipefail
@@ -43,20 +44,17 @@ if [ -z "$NAME" ]; then
   exit 1
 fi
 
+REMOTE="sk/$NAME/SKILL.md"
+
 extract_id() {
   jq -r '(.data.data.id // .data.id // .id) // empty'
 }
 
-if EXISTING=$(mxs snippet get "skill/$NAME" --json 2>/dev/null); then
-  ID=$(printf '%s' "$EXISTING" | extract_id)
-  if [ -z "$ID" ]; then
-    echo "error: existing snippet at skill/$NAME has no id" >&2
-    exit 1
-  fi
-  mxs snippet update "$ID" --file "$SRC" --json >/dev/null
-else
-  RESPONSE=$(mxs snippet create --name "$NAME" --type skill --file "$SRC" --json)
-  ID=$(printf '%s' "$RESPONSE" | extract_id)
+RESPONSE=$(mxs snippet put "$REMOTE" --type skill --file "$SRC" --json)
+ID=$(printf '%s' "$RESPONSE" | extract_id)
+
+if [ -z "$ID" ]; then
+  ID=$(mxs snippet get "$REMOTE" --json | extract_id)
 fi
 
 if [ -z "$ID" ]; then

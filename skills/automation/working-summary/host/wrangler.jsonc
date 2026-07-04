@@ -1,0 +1,22 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "working-summary-reports-host",
+  "main": "src/index.js",
+  "compatibility_date": "2026-06-29",
+  "account_id": "de7ecb0eaa0a328071255d557a6adb66",
+  "observability": {
+    "enabled": true
+  },
+  "r2_buckets": [
+    {
+      "binding": "BUCKET",
+      "bucket_name": "working-summary-reports"
+    }
+  ],
+  "routes": [
+    {
+      "pattern": "reports.innei.dev",
+      "custom_domain": true
+    }
+  ]
+}

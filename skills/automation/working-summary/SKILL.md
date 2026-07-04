@@ -50,19 +50,32 @@ whether to persist the result.
 
 At the end of synthesis, prompt the user with these options:
 
-| Choice         | Behavior                                                                                                                                                                                   |
-| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `no` / nothing | Done. Report lives only in the conversation.                                                                                                                                               |
-| `md`           | Write markdown to `output.dir/{filename}` (ext=`md`).                                                                                                                                      |
-| `html`         | Render themed HTML to `$TMPDIR/working-summary-<stamp>.html` via `scripts/render_html.py`, run `open` on it, then ask whether to also move a copy to `output.dir/{filename}` (ext=`html`). |
-| `both`         | Do `md` and `html` in that order.                                                                                                                                                          |
+| Choice         | Behavior                                                                                                                                                                                                                                                                |
+| -------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `no` / nothing | Done. Report lives only in the conversation.                                                                                                                                                                                                                            |
+| `md`           | Write markdown to `output.dir/{filename}` (ext=`md`).                                                                                                                                                                                                                   |
+| `html`         | Render themed HTML to `$TMPDIR/working-summary-<stamp>.html` via `scripts/render_html.py`, run `open` on it, then ask whether to also move a copy to `output.dir/{filename}` (ext=`html`).                                                                              |
+| `both`         | Do `md` and `html` in that order.                                                                                                                                                                                                                                       |
+| `linear`       | Create a Linear issue in the **report cycle**, assigned to the viewer, state set to the team's `completed` state (typically "Done"), with the report markdown as the description. Requires Linear to be configured AND connected. See **Linear archive** below.          |
+| `publish`      | Upload the HTML report to the configured R2 bucket (served at the configured public base URL via a Cloudflare Worker behind Access). Requires `output.publish` to be set. Renders HTML to a tempfile if no `html` was produced yet. See **R2 publish** below.            |
+
+Choices compose with `+`: e.g. `linear+html`, `html+publish`, `linear+html+publish`.
+Order of operations within a composite:
+
+1. **linear** archive (if requested) — so the issue exists before any file write.
+2. **publish** to R2 (if requested) — so the public URL exists before the local file is touched.
+3. **html** / **md** local persistence (if requested).
+
+Bare `linear` / `publish` is fine when no local file is wanted.
 
 **Default choice from config**: when `output.format` is set in the config
 file, use it as the **highlighted default** in the prompt (e.g.
-`format: html` → "落盘否？[**html** / md / both / no]"). The user can still
-override by typing another choice. When `output.format` is unset or is
-`markdown`, highlight `md` as default. When `output.format` is `both`,
-highlight `both`.
+`format: html` → "落盘否？[**html** / md / both / linear / publish / no]").
+The user can still override by typing another choice. When `output.format`
+is unset or is `markdown`, highlight `md` as default. When `output.format`
+is `both`, highlight `both`. `output.format` may also be set to any of the
+composite values (`linear`, `linear+md`, `linear+html`, `linear+both`,
+`publish`, `html+publish`, `linear+publish`, `linear+html+publish`).
 
 The HTML renderer is a deterministic post-processor — the LLM only ever
 produces markdown. See **HTML Rendering** below.
@@ -155,8 +168,10 @@ In addition to the **report cycle** (resolved against the date range), the scrip
 {
   "linear": {
     "team": "LOBE",
+    "team_id": "...",          // Linear team UUID — used by create_linear_issue.py
+    "done_state_id": "...",    // first workflow state with type=completed (typically "Done")
     "viewer_id": "...",
-    "cycle": { "number": 9, "name": "...", "startsAt": "...", "endsAt": "...", "progress": 0.37 },
+    "cycle": { "id": "...", "number": 9, "name": "...", "startsAt": "...", "endsAt": "...", "progress": 0.37 },
     "issues": [
       {
         "identifier": "LOBE-6603",
@@ -262,9 +277,73 @@ Targets:
 - **markdown** → `{output.dir}/{filename}` (ext=`md`)
 - **html temporary** → `$TMPDIR/working-summary-{start}-{end}.html` then `open` it
 - **html permanent** (optional follow-up) → `{output.dir}/{filename}` (ext=`html`)
+- **linear archive** → no file; see **Linear archive** below
 
 Never overwrite an existing file silently — if present, ask the user
 (append, overwrite, or new suffix).
+
+## Linear archive
+
+When the user picks `linear` (or a composite), the skill must:
+
+1. Write the final synthesized markdown to a working file (e.g. the same
+   one used for `render_html.py`).
+2. Invoke `scripts/create_linear_issue.py --json collected.json --md report.md`.
+   The script reads `linear.team_id`, `linear.done_state_id`,
+   `linear.viewer_id`, `linear.cycle.id`, `range.start`, `range.end` from
+   the collected JSON and submits a single `issueCreate` mutation via
+   `linear api`.
+3. Title defaults to `Weekly Summary YYYY-Www (start ~ end)` using the ISO
+   week of `range.end`. Override via `--title`.
+4. The created issue lands in the **report cycle** (not the active cycle),
+   assigned to the viewer, with state set to the team's first `completed`
+   workflow state — typically "Done". Description is the markdown report
+   verbatim.
+5. On success the script prints `{identifier, url, state, cycle, assignee}`
+   as JSON. Surface the identifier + URL back to the user.
+6. Failure modes: missing `linear` CLI, missing fields in collected JSON
+   (re-run `collect.py` against an updated `fetch_linear.py`), or GraphQL
+   errors. The script exits non-zero with a stderr message — propagate it.
+7. Use `--dry-run` to print the mutation input without sending; useful for
+   debugging or when the user wants to confirm the destination before the
+   write.
+
+The `linear` choice never writes a file. Combine with `md` / `html` /
+`both` to also persist locally.
+
+## R2 publish
+
+When the user picks `publish` (or a composite), the skill must:
+
+1. Ensure an HTML report exists on disk. If the chosen composite did not
+   already render HTML, run `render_html.py` into a tempfile under
+   `$TMPDIR`. Reuse the same tempfile if `html` was also chosen.
+2. Compute the R2 key from the same placeholder used for local persistence
+   (`{year}-{month}-w{week}.html`).
+3. Probe for conflict:
+   `scripts/publish_r2.sh check <bucket> <key>` → exit 0 = exists, 1 = missing.
+4. If the object exists, ask the user `[overwrite / suffix / skip]`. On
+   `suffix`, append `-1`, `-2`, ... until a free key is found (re-running
+   `check` between each attempt).
+5. Upload:
+   `scripts/publish_r2.sh put <bucket> <local-file> <key> <base-url>` →
+   prints the public URL to stdout on success.
+6. Surface the URL back to the user. Do NOT visit it from inside the skill
+   — Cloudflare Access requires interactive email login.
+
+The script invokes `wrangler r2 object put` with `--content-type
+"text/html; charset=utf-8"`. The user must already be `wrangler login`-ed
+to the Cloudflare account that owns the bucket; the skill never handles
+credentials directly.
+
+`output.publish` is required. If missing, the `publish` choice is hidden
+from the prompt and any composite containing `publish` is rejected with a
+clear message.
+
+The hosting Worker code itself lives under `host/` (see `host/README.md`)
+and is deployed independently via `wrangler deploy`. The skill never
+redeploys the Worker — new reports are just new objects in the bucket and
+become visible in the index on the next page load.
 
 ## HTML Rendering
 
@@ -339,6 +418,9 @@ Offer — and **wait for explicit confirmation** — before any write action:
 - `scripts/fetch_github.py ... --no-commits` — skip commit + merged-PR reconstruction; only open PRs / issues on explicit repos.
 - `scripts/fetch_linear.py --team LOBE --cycle auto --from 2026-03-30 --to 2026-04-05` — Linear-only fetch, useful for debugging cycle resolution.
 - `scripts/render_html.py --markdown report.md -o /tmp/out.html` — render a standalone markdown file into themed HTML. Add `--json collected.json` to enrich the meta grid and stats.
+- `scripts/create_linear_issue.py --json collected.json --md report.md --dry-run` — print the `issueCreate` mutation input without sending. Drop `--dry-run` to actually create the issue in the report cycle.
+- `scripts/publish_r2.sh check <bucket> <key>` — probe whether a key already exists in the R2 bucket (exit 0 = yes, 1 = no, 2 = wrangler/auth error).
+- `scripts/publish_r2.sh put <bucket> <local-file> <key> <base-url>` — upload the local file as `<key>` with `text/html` content type, print the resulting public URL.
 
 ## Dependencies
 

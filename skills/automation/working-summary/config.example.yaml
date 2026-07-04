@@ -37,6 +37,14 @@ linear:
     - Done
 
 output:
+  # Default highlighted choice at the end-of-run prompt. Single or `+`-joined:
+  #   markdown | html | both | linear | publish
+  #   linear+md | linear+html | linear+both
+  #   publish | html+publish | linear+publish | linear+html+publish
+  # `linear*` requires the linear block above. `publish*` requires the
+  # output.publish block below. `publish` alone uploads to R2 with no
+  # local file; composite values do both.
+  format: html
   # Language for the synthesized report prose. Section headers (e.g.
   # "In Progress", "Features") and raw PR/issue/commit titles are kept
   # verbatim regardless of this setting; only the human-written
@@ -50,3 +58,10 @@ output:
   # Placeholders: {year} {month} {week} {start} {end} {ext}
   # {ext} is `md` or `html` depending on the user's choice at end of run.
   filename: "{year}-{month}-w{week}.{ext}"
+
+  # Optional. Enables the `publish` end-of-run choice. Uploads the rendered
+  # HTML to a Cloudflare R2 bucket served by the Worker under host/.
+  # Drop this block to hide `publish` from the prompt.
+  publish:
+    bucket: working-summary-reports
+    base_url: https://reports.innei.dev

@@ -55,6 +55,32 @@ def get_viewer_id() -> str | None:
     return (d.get("viewer") or {}).get("id")
 
 
+def get_team_meta(team_key: str) -> dict | None:
+    """Return {id, doneStateId} for a team, or None on failure.
+
+    `doneStateId` is the first workflow state whose type == 'completed'.
+    Used downstream by create_linear_issue.py so the mutation does not have
+    to re-query.
+    """
+    q = """
+    query($key: String!) {
+      team(id: $key) {
+        id
+        states(filter: { type: { eq: "completed" } }) {
+          nodes { id name type }
+        }
+      }
+    }
+    """
+    d = linear_api(q, {"key": team_key})
+    if not d or not d.get("team"):
+        return None
+    t = d["team"]
+    done_states = ((t.get("states") or {}).get("nodes")) or []
+    done_id = done_states[0]["id"] if done_states else None
+    return {"id": t.get("id"), "doneStateId": done_id}
+
+
 def list_team_cycles(team_key: str) -> list[dict]:
     q = """
     query($key: String!) {
@@ -196,6 +222,7 @@ def _cycle_meta(c: dict | None) -> dict | None:
     if not c:
         return None
     return {
+        "id": c.get("id"),
         "number": c.get("number"),
         "name": c.get("name"),
         "startsAt": c.get("startsAt"),
@@ -254,8 +281,12 @@ def collect(
             )
             in_progress = [normalize_issue(it) for it in raw_ip]
 
+    team_meta = get_team_meta(team_key) or {}
+
     return {
         "team": team_key,
+        "team_id": team_meta.get("id"),
+        "done_state_id": team_meta.get("doneStateId"),
         "viewer_id": viewer,
         "cycle": _cycle_meta(report_cycle),
         "issues": report_issues,
