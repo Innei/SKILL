@@ -40,9 +40,9 @@ Escalate only when the current level demonstrably fails. Never skip levels
 | --- | --- | --- |
 | Exact command, error output, diff hunk, version string | `<codeblock>` — always verbatim (Willison rule: never paraphrase output in prose) | Prose paraphrase; screenshot of text |
 | A change spanning files that must be read together | `<code-snippet>` (one `<file>` each) | Several disconnected codeblocks |
-| "I was wrong about X" correction; a hazard that costs the reader real damage | `<alert type="warning|caution">` | Alert as a highlighter for any point you like |
-| Genuinely useful aside that most readers can skip | `<alert type="tip|note">`, sparingly | Tip-alert every few paragraphs |
-| Page-wide precondition, deprecation, or status notice | `<banner>` (max 1 per post, at top) | Banner mid-article as a section divider |
+| A hazard that costs the reader real damage (data loss, money, security, prod outage) | `<alert type="warning|caution">` — the body must name the damage | Alert as a highlighter for nuance, advice, or any point you like |
+| Genuinely useful aside that most readers can skip | Plain prose or a parenthetical; `<alert type="tip|note">` only when missing it breaks the reader's task | Tip-alert every few paragraphs |
+| The post itself is outdated / superseded / time-boxed (deprecation notice, "broken as of vX") | `<banner>` (max 1, at top) | Banner as a styled intro, a skill/source pointer, or a section divider |
 | Comparing enumerable facts, ≥ 2 rows × 2 cols of short cells | `<table>` | Table with one column, or prose stuffed into cells |
 | Two short alternatives viewed side-by-side | `<grid cols="2">` | Grid for content that reads sequentially |
 | Architecture, pipeline, decision tree, timeline | `<excalidraw>` (see the visuals table in SKILL.md) | ASCII art in a codeblock |
@@ -110,9 +110,21 @@ curl -fsS "${MXS_API_URL}/s/dynamic-widgets-catalog?_t=$(date +%s)"
 
 ## Quantity discipline
 
-- **Alerts**: at most ~1 per major section. More than 3 in a post means the
-  structure is failing — restructure instead of shouting.
-- **Banner**: 0 or 1.
+Callouts are where LLM authoring habits leak through most: the model's
+prior loves wrapping every aside in a colored box, and a post whose intro
+is a banner and whose transitions are tip-alerts reads as machine-written
+regardless of prose quality. Treat `<alert>` and `<banner>` as guilty
+until proven: the default count for both is **zero**, and the budgets
+below are ceilings for the exceptional case, not allowances to spend.
+
+- **Alerts**: default 0. One is fine when it names real damage (data loss,
+  money, security, prod outage); two needs a genuinely hazardous topic.
+  More than 2 means the structure is failing — restructure instead of
+  shouting. Nuance, asides, and "worth noting" belong in prose.
+- **Banner**: default 0. Reserve for a page-wide status fact about the
+  post itself (deprecated, superseded, time-boxed validity). Never use it
+  as a styled introduction or a skill/source pointer — those are opening
+  prose (see writing-style.md "Structure").
 - **Interactive nodes** (`poll` / `chat` / `dynamic`): zero is a fine
   number; one that nails the core lesson is excellent; several per post
   almost always means gimmickry. Enter only through a scenario in "When
@@ -145,5 +157,6 @@ justification from the deletion test. Three outcomes:
 2. Clause is "it looks better" / "variety" → delete, demote to prose.
 3. Can't produce a clause at all → delete without hesitation.
 
-Then check the budgets: alerts ≤ 3, banner ≤ 1, interactive usually 0,
-diagrams each answering a named question.
+Then check the budgets: alerts default 0 (≤ 2, each naming real damage),
+banner default 0 (only page-wide status about the post itself),
+interactive usually 0, diagrams each answering a named question.

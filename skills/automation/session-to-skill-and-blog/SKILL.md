@@ -3,7 +3,8 @@ name: session-to-skill-and-blog
 description: >
   Turn a completed non-trivial engineering session into a paired durable
   artifact: (1) a reusable skill under Innei's personal SKILL repo, and (2) a
-  published blog post that narrates the journey and embeds the skill URL.
+  published blog post that distills the lessons, linked to the skill via
+  the attached skill card (meta.skillIds — never mentioned in the body).
   Triggers on "把这个过程写成 skill 再写一篇 blog"、"沉淀一下这次的折腾"、
   "productize this session"、"publish this as a skill and a writeup".
 metadata:
@@ -21,9 +22,10 @@ keeping, or Innei said "写成 skill / productize this". Skip for pure
 interactive Q&A or project-specific lessons (those go in the project's
 `CLAUDE.md`).
 
-**Iron rule: skill first, blog second.** The blog needs the skill URL,
-which only exists after the skill is pushed. And SKILL.md's format forces
-operational completeness before narrative drama distorts the lessons.
+**Iron rule: skill first, blog second.** The blog attaches the skill via
+`meta.skillIds`, which only exists after the skill is pushed to mx-core.
+And SKILL.md's format forces operational completeness before narrative
+drama distorts the lessons.
 
 ## References
 
@@ -110,7 +112,8 @@ cd "$REPO" && git commit -m "feat: add <skill-name> skill" && git push
 ```
 
 The pre-commit hook enforces: README row exists; both flat symlinks
-present and resolved. Skill URL (used at blog top + bottom):
+present and resolved. Skill URL (for reference only — never mentioned in
+the blog body; the skill card carries the linkage):
 `https://github.com/Innei/SKILL/tree/main/skills/<domain>/<skill-name>`
 
 ### [4] Push skill to mx-core
@@ -184,7 +187,7 @@ Innei approves → `mxs post publish <slug>`. Edits round-trip via
 | Switching personas mid-post                          | Pick one and stay. If a `pattern` post needs Innei's ownership voice for one component, demote ownership to third person rather than switch. |
 | Node sprinkling ("use more node types")              | Node variety is not a quality metric. Apply the deletion test per node (`node-usage.md`). |
 | Pitfalls in prose only, no table                     | Pitfalls table is mandatory; it's the most-grep'd section.                           |
-| Skill URL not embedded in blog (both top + bottom)   | Banner at top, CTA at bottom.                                                        |
+| Mentioning the skill in the blog body (opener "操作手册见…", bottom CTA, banner) | Zero in-text mention. `meta.skillIds` renders the skill card; the body never discusses its own artifacts. |
 | `--no-verify` to bypass pre-commit hook              | Pre-commit invariants must all be in the same commit; fix the root cause instead.    |
 | Hardcoding `~/git/innei-repo/skill` in shell         | `bash "$S/resolve-skill-repo.sh"` — config-driven with fallback.                     |
 | Stale local `litexml-authoring` clone                | `bash "$S/load-litexml.sh"` refreshes via degit on every call.                       |
@@ -213,16 +216,21 @@ Innei approves → `mxs post publish <slug>`. Edits round-trip via
 - [ ] Pre-commit hook passed; `git push` succeeded.
 - [ ] `bash "$S/push-skill.sh" …` returned a snowflake id; the public URL
       `${MXS_API_URL}/api/v3/s/sk/<name>` resolves to the raw markdown.
-- [ ] Skill URL resolves in a browser; embedded in blog at top + bottom.
+- [ ] Blog body has **zero** mention of the skill (no opener pointer, no
+      bottom CTA, no banner) — the skill card carries the linkage.
 - [ ] Voice follows `writing-style.md`: one persona throughout (default
       `pattern`; `agent` only when the process is the point; `site-owner`
-      only when Innei owns the subject); `pattern` posts use the four-block
-      section template + self-audit closing; Willison transparency, Abramov
-      arc, Antirez 断语; em-dashes sparing.
+      only when Innei owns the subject); every section passes the substance
+      check (transferable judgment woven in prose, real failure evidence,
+      reconstructible fix) without isomorphic section shapes; none of the
+      hard bans (meta-narrative, fixed-phrase labels, closing recap,
+      decorative callouts) appear; Willison transparency, Abramov arc,
+      Antirez 断语; em-dashes sparing.
 - [ ] Visuals follow `visuals.md`: ≥ 3 Excalidraw diagrams for substantial
       `site-owner` posts, each answering a named question.
 - [ ] Node audit passed (`node-usage.md`): every non-prose node holds a
-      one-clause deletion-test justification; alerts ≤ 3, banner ≤ 1,
+      one-clause deletion-test justification; alerts and banner default 0
+      (alert only for named real damage, banner only for post-level status);
       interactive nodes enter only via a "When interaction teaches" scenario.
 - [ ] `mxs auth whoami` returned the expected user; `<category>` reuses an
       existing slug (or Innei explicitly approved a new one).
