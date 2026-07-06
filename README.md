@@ -60,6 +60,7 @@ SKILL/
 
 | Skill | Purpose |
 | ----- | ------- |
+| [`vercel-build-output-routes`](skills/infrastructure/vercel-build-output-routes/SKILL.md) | Inject custom edge routes (e.g. static-asset 404 short-circuit) into Vercel Build Output when the framework builder owns config.json |
 
 ### Research
 
