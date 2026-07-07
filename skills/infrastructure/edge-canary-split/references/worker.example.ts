@@ -49,13 +49,12 @@ const fetchOrigin = (request: Request, env: Env, bucket: Bucket, url: URL) => {
   // subrequest makes Vercel answer 308-to-https for every document — always
   // talk to the origins over https regardless of how the eyeball arrived.
   originUrl.protocol = 'https:';
-  // Zone cache rules do not opt origin documents in — verified live twice
-  // (2026-07-07 against the vercel.app origin, 2026-07-08 against the
-  // same-zone landing-staging origin): without cacheEverything canary HTML
-  // stays cf-cache-status DYNAMIC. Do not remove without re-measuring.
-  // Both origins are cross-zone vercel.app hosts now, so stable no longer
-  // rides the public-URL zone cache either and needs the same opt-in; TTLs
-  // come from the origins' Cloudflare-CDN-Cache-Control headers.
+  // Zone cache rules DO evaluate subrequests (verified 2026-07-08: a rule
+  // keyed on the origin full_uri turns MISS→HIT), but every existing rule
+  // matches public hostnames, so nothing opts the vercel.app origin hosts
+  // in. cacheEverything keeps eligibility self-contained instead of tying
+  // it to dashboard rules that must track the origin list; TTLs come from
+  // the origins' Cloudflare-CDN-Cache-Control headers.
   const cf: RequestInitCfProperties | undefined =
     request.method === 'GET' || request.method === 'HEAD' ? { cacheEverything: true } : undefined;
   return fetch(new Request(originUrl, request), { cf });
