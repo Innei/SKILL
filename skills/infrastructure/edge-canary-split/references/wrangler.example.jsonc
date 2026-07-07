@@ -1,0 +1,29 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "<WORKER_NAME>",
+  "account_id": "<ACCOUNT_ID>",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-07-07",
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 0.05
+  },
+  "routes": [
+    { "pattern": "<PUBLIC_HOST>/*", "zone_name": "<PUBLIC_HOST>" },
+    // Staging stays mounted as a rehearsal surface for future iterations.
+    { "pattern": "<STAGING_HOST>/*", "zone_name": "<PUBLIC_HOST>" }
+  ],
+  "kv_namespaces": [
+    { "binding": "CANARY", "id": "<KV_NAMESPACE_ID>" }
+  ],
+  "vars": {
+    // Origins MUST be cross-zone (*.vercel.app, the projects' canonical
+    // production aliases). Same-zone subrequests skip the Worker via recursion
+    // prevention but reach the origin over plain HTTP, and Vercel answers with
+    // a 308 https upgrade pointing at itself — verified live: every document
+    // through a same-zone origin was an infinite 308 loop.
+    "STABLE_ORIGIN": "<STABLE_PROJECT>.vercel.app",
+    "CANARY_ORIGIN": "<CANARY_PROJECT>.vercel.app",
+    "CANARY_PERCENT": "1"
+  }
+}

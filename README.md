@@ -60,6 +60,7 @@ SKILL/
 
 | Skill | Purpose |
 | ----- | ------- |
+| [`edge-canary-split`](skills/infrastructure/edge-canary-split/SKILL.md) | Cookie-sticky canary rollout between two Vercel apps via a Cloudflare Worker, with hashed assets offloaded to R2 so they never traverse the worker |
 
 ### Research
 

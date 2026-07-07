@@ -78,7 +78,7 @@ heading = domain.capitalize()
 row = f"| [`{name}`](skills/{domain}/{name}/SKILL.md) | {purpose} |"
 
 pat = re.compile(
-    rf"(### {re.escape(heading)}\n.*?\| ----- \| ------- \|\n)((?:\|.*\n)+)",
+    rf"(### {re.escape(heading)}\n.*?\| ----- \| ------- \|\n)((?:\|.*\n)*)",
     re.S,
 )
 m = pat.search(text)
