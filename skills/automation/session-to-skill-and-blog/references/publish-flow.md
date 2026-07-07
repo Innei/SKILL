@@ -1,4 +1,4 @@
-# Publish flow — preview, create, round-trip, stage/apply
+# Publish flow — preview, draft, publish, stage/apply
 
 ## Preview
 
@@ -15,7 +15,11 @@ Keep authoring sources `<doc>`-wrapped when previewing bare fragments —
 inter-block whitespace otherwise becomes root-level text nodes (Lexical
 error #282). mxs wraps server-side, so the published post is unaffected.
 
-## Create (always draft)
+## Create (native draft entity)
+
+The article starts life as a server-side **draft entity** — not a post
+with draft state. No post exists (and nothing can leak to readers) until
+`mxs draft publish`.
 
 ```bash
 mxs auth whoami                      # confirm; if not, mxs auth login
@@ -26,18 +30,41 @@ cp "$(dirname "$S")/references/envelope.template.xml" /tmp/blog/article.xml
 # Optional: push the SKILL.md to mx-core first so the blog can attach it.
 SKILL_ID=$(bash "$S/push-skill.sh" "$REPO/skills/<domain>/<skill-name>/SKILL.md")
 
-bash "$S/publish-post.sh" /tmp/blog/article.xml --skill-id "$SKILL_ID"
-# Innei previews in the admin tab opened by --open; when approved:
-mxs post publish <slug>
+bash "$S/create-draft.sh" /tmp/blog/article.xml --skill-id "$SKILL_ID"
+# → { ok: true, id: <draftId> } — capture the id for the next steps.
+# Innei previews in the admin draft editor opened by --open.
 ```
 
-`publish-post.sh` creates as draft with `aiGen=2` and `--open`. With one
-or more `--skill-id <id>` args it jq-assembles `meta.skillIds` so the
-admin SkillPicker / public article card list resolve the attached
-skill(s). Never `--state publish` on create; never hand-write
-`<summary>` (server AI generates it).
+`create-draft.sh` runs `mxs draft create` with `aiGen=2` and `--open`.
+With one or more `--skill-id <id>` args it jq-assembles `meta.skillIds`
+so the admin SkillPicker / public article card list resolve the attached
+skill(s); the meta rides into the post at `draft publish`. Never
+hand-write `<summary>` (server AI generates it).
 
-## Edit a draft (round-trip)
+Legacy fallback (installed `mxs` lacks the `draft` group): `mxs post
+create --file <xml> --state draft`, preview, then `mxs post publish
+<slug>`.
+
+## Iterate on the draft
+
+```bash
+mxs draft update <draftId> --file /tmp/blog/article.xml
+```
+
+Versioned server-side: each content change bumps the draft version and
+records history.
+
+## Publish (after Innei approves)
+
+```bash
+mxs draft publish <draftId>
+```
+
+One step: creates the live post from the draft (`POST /posts` with
+`draftId`), links the draft to it, and marks the draft version as
+published. The draft and its history are retained.
+
+## Edit after publication (round-trip)
 
 ```bash
 bash "$S/get-post.sh"   <slug> > /tmp/blog/article.xml

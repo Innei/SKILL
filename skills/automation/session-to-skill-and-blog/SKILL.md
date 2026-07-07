@@ -9,7 +9,7 @@ description: >
   "productize this session"、"publish this as a skill and a writeup".
 metadata:
   author: innei
-  version: "0.10.0"
+  version: "0.11.0"
 ---
 
 # session-to-skill-and-blog
@@ -54,7 +54,8 @@ For LiteXML tag syntax itself, load the litexml-authoring skill (fresh via
 
 Missing key → fallback to `~/git/innei-repo/skill`.
 Domains: `infrastructure` / `automation` / `writing` / `research` / `content`.
-Prereqs once per machine: `npm i -g @mx-space/cli` (Node ≥ 22); `mxs auth login`.
+Prereqs once per machine: `npm i -g @mx-space/cli` (Node ≥ 22, needs the
+`draft` command group — check `mxs draft --help`); `mxs auth login`.
 
 ## Scripts
 
@@ -71,7 +72,7 @@ S="$(realpath ~/.claude/skills/session-to-skill-and-blog)/scripts"
 | `scaffold-skill.sh`     | Create dir + stub SKILL.md + README row (alphabetical) + both flat symlinks; `git add` staged.  |
 | `load-litexml.sh`       | `degit` the latest `litexml-authoring` subtree (SKILL.md + `references/`) into `~/.cache/`.     |
 | `push-skill.sh`         | Idempotent `mxs snippet put sk/<name>/SKILL.md --type skill` from a SKILL.md path, plus every sibling asset file (`references/`, `scripts/`, …) as `--type text` under the same dir. Emits the snowflake id on stdout. |
-| `publish-post.sh`       | `mxs post create` as draft, with `aiGen=2`, `--open` admin preview, `--silent` response; optional `--skill-id <id>` repeated arg threads ids into `meta.skillIds`. |
+| `create-draft.sh`       | `mxs draft create` — native draft entity (no post yet), with `aiGen=2`, `--open` admin preview, `--silent` → `{ ok, id }`; optional `--skill-id <id>` repeated arg threads ids into `meta.skillIds`. |
 | `get-post.sh`           | `mxs post get <slug> --output xml` — round-trip step 1.                                         |
 | `update-post.sh`        | `mxs post update <slug> --file …` — round-trip step 2.                                          |
 
@@ -137,7 +138,7 @@ next to SKILL.md) are pushed as `--type text` snippets under the same
 `sk/<name>/` dir — the backend rejects `--type skill` for any path not
 ending in `/SKILL.md`, and without them relative links inside SKILL.md
 404 on the public site.
-Capture the returned id; step [6] threads it through `publish-post.sh`.
+Capture the returned id; step [6] threads it through `create-draft.sh`.
 
 If the skill never reaches mx-core, the blog still publishes — readers
 just won't see the install card. That trade-off is fine when mx-core is
@@ -170,11 +171,13 @@ Plain Markdown is fine when no haklex-specific tags are needed.
 ### [6] Publish via `mxs`
 
 Follow [`publish-flow.md`](./references/publish-flow.md): preview →
-create as **draft** with the skill id from step [4]
-(`bash "$S/publish-post.sh" /tmp/blog/article.xml --skill-id "$SKILL_ID"`) →
-Innei approves → `mxs post publish <slug>`. Edits round-trip via
-`get-post.sh` / `update-post.sh`; published posts prefer `stage` /
-`apply`. Paste the final URL back into the originating session.
+create a **native draft entity** with the skill id from step [4]
+(`bash "$S/create-draft.sh" /tmp/blog/article.xml --skill-id "$SKILL_ID"`
+→ `{ ok, id }`; no post exists yet) → iterate with
+`mxs draft update <draftId> --file …` → Innei approves →
+`mxs draft publish <draftId>` creates the live post in one step.
+Post-publication edits prefer `stage` / `apply`, else `get-post.sh` /
+`update-post.sh`. Paste the final URL back into the originating session.
 
 ## Common pitfalls
 
@@ -193,18 +196,19 @@ Innei approves → `mxs post publish <slug>`. Edits round-trip via
 | Stale local `litexml-authoring` clone                | `bash "$S/load-litexml.sh"` refreshes via degit on every call.                       |
 | `pnpm --silent litexml …` from a haklex worktree     | `mxs preview <file>` — envelope-aware, no local clone, opens browser by default.     |
 | Skill written in Chinese                             | Skill in English (artifact). Blog in Innei's chosen language (default Chinese).      |
-| `--state publish` on `post create`                   | Always create as draft. `mxs post publish <slug>` only after Innei approves preview. |
+| Creating a post (even with `--state draft`) to stage the article | Use the native draft entity: `create-draft.sh` → `mxs draft publish <id>`. A draft-state post pollutes the post list and risks the `<state>` unpublish trap; a draft entity cannot leak. Legacy fallback (`mxs` without the `draft` group): `post create --state draft` + `post publish <slug>`. |
+| `mxs draft publish` before Innei approves            | Publish creates the live post immediately. Only run it after Innei approves the admin preview. |
 | Skipping `push-skill.sh` and embedding only the GitHub URL | The blog `<SkillCardList>` reads `meta.skillIds`. Without `--skill-id`, the install card never renders even if the GitHub link is right. |
-| Hand-writing `--meta '{"aiGen":2,"skillIds":[…]}'`   | Use `publish-post.sh --skill-id <id>`; it jq-assembles meta and survives multiple ids without quoting bugs. |
-| Re-running `post create` to edit                     | Round-trip: `get-post.sh` → edit → `update-post.sh`.                                 |
-| Updating a published post with the create envelope   | Its `<state>draft</state>` unpublishes the live post — readers see it vanish. `update-post.sh` strips `<state>`; publish state changes only via `mxs post publish\|unpublish`. |
+| Hand-writing `--meta '{"aiGen":2,"skillIds":[…]}'`   | Use `create-draft.sh --skill-id <id>`; it jq-assembles meta and survives multiple ids without quoting bugs. |
+| Re-running `draft create` to edit                    | `mxs draft update <draftId> --file …` — versioned, keeps history. After publication: `get-post.sh` → edit → `update-post.sh`. |
+| Updating a published post with the create envelope   | A stray `<state>draft</state>` unpublishes the live post — readers see it vanish. `update-post.sh` strips `<state>`; publish state changes only via `mxs post publish\|unpublish`. |
 | LiteXML body passed straight to `mxs --file`         | Wrap in `references/envelope.template.xml` first.                                    |
 | Previewing a bare LiteXML fragment (no `<doc>`)      | Inter-block whitespace becomes root-level text nodes → Lexical error #282. Keep authoring sources `<doc>`-wrapped; mxs wraps server-side. |
 | `<dynamic>` with an invented or adapted URL          | Catalog-gated: only URLs from `${MXS_API_URL}/s/dynamic-widgets-catalog`. No catalog → no `<dynamic>`; degrade per `node-usage.md`. |
 | Hand-writing `<summary>`                             | Omit. Server AI auto-generates and may overwrite.                                    |
 | Picking `<category>` without checking what exists    | `mxs category list --output llm` first; reuse existing slug.                         |
 | Auto-creating a new category                         | Requires explicit second confirmation from Innei before `mxs category create`.       |
-| Forgetting `aiGen=2`                                 | `publish-post.sh` already passes `--meta '{"aiGen":2}'`; on first update of a legacy post, re-attach with `mxs post update <slug> --meta '{"aiGen":2}'`. |
+| Forgetting `aiGen=2`                                 | `create-draft.sh` already passes `--meta '{"aiGen":2}'` (carried through `draft publish`); on first update of a legacy post, re-attach with `mxs post update <slug> --meta '{"aiGen":2}'`. |
 
 ## Verification
 
@@ -234,6 +238,7 @@ Innei approves → `mxs post publish <slug>`. Edits round-trip via
       interactive nodes enter only via a "When interaction teaches" scenario.
 - [ ] `mxs auth whoami` returned the expected user; `<category>` reuses an
       existing slug (or Innei explicitly approved a new one).
-- [ ] Envelope `<state>draft</state>` on first push; `mxs post publish
-      <slug>` only after Innei approves; `aiGen=2` set.
+- [ ] Article staged as a native draft entity (`create-draft.sh` →
+      `{ ok, id }`); `mxs draft publish <draftId>` only after Innei
+      approves; `aiGen=2` set (rides into the post at publish).
 - [ ] Final post URL pasted back into the originating session.

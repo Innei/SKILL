@@ -7,7 +7,6 @@
       <tag><!-- TAG-1 --></tag>
       <tag><!-- TAG-2 --></tag>
     </tags>
-    <state>draft</state>
     <format>lexical</format>
   </meta>
   <content>
@@ -16,7 +15,7 @@
       scripts/load-litexml.sh) for tag schema and authoring recipes.
 
       Do NOT add a <summary> here — server AI auto-generates it.
-      aiGen is set via the --meta flag in scripts/publish-post.sh, not here.
+      aiGen is set via the --meta flag in scripts/create-draft.sh, not here.
     -->
   </content>
 </mxpost>

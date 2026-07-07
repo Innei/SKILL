@@ -1,13 +1,16 @@
 #!/usr/bin/env bash
-# Create a draft post on mx-space from a LiteXML envelope, mark it as
-# AI-written (aiGen=2), optionally attach a skill snippet via
-# meta.skillIds, open the admin edit page for Innei to preview, and
-# silence the full server response. Does NOT publish — run
-# `mxs post publish <slug>` after Innei approves.
+# Create a native draft entity on mx-space from a LiteXML envelope, mark it
+# as AI-written (aiGen=2), optionally attach a skill snippet via
+# meta.skillIds, open the admin draft editor for Innei to preview, and emit
+# only { ok, id }. The draft is invisible on the site until
+# `mxs draft publish <id>` — no post exists yet.
+#
+# Requires `mxs` with the `draft` command group (@mx-space/cli >= 0.14).
+# On older mxs, fall back to `mxs post create --file <xml> --state draft`.
 #
 # Usage:
-#   publish-post.sh <article.xml>
-#   publish-post.sh <article.xml> --skill-id <id> [--skill-id <id> ...]
+#   create-draft.sh <article.xml>
+#   create-draft.sh <article.xml> --skill-id <id> [--skill-id <id> ...]
 set -euo pipefail
 
 if [ $# -lt 1 ]; then
@@ -44,4 +47,4 @@ else
   META=$(printf '%s\n' "${SKILL_IDS[@]}" | jq -R . | jq -s '{aiGen: 2, skillIds: .}' -c)
 fi
 
-mxs post create --file "$SRC" --meta "$META" --open --silent
+mxs draft create --file "$SRC" --meta "$META" --open --silent
