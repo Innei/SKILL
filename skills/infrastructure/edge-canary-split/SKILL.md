@@ -115,10 +115,14 @@ Three non-negotiable details in `fetchOrigin`:
   host-equality guard silently disables bucketing the day the mounted host
   equals an origin (it did, in production config).
 
-Documents need `cf: { cacheEverything: true }` on the subrequest — zone
-cache rules match against the subrequest host, not the public hostname, so
-they never opt these documents in (verified by ablation, twice). TTL still
-comes from the origin's `Cloudflare-CDN-Cache-Control`. And force browser
+Documents need cache eligibility on the subrequest. Zone cache rules DO
+evaluate worker subrequests (verified live: a rule keyed on the origin's
+`full_uri` turns MISS→HIT with no cf options), but rules written against
+the public hostname never match the subrequest's origin host — so either
+add rules keyed on each origin URL, or ship `cf: { cacheEverything: true }`
+so the worker is self-contained and independent of dashboard state. Prefer
+the latter. TTL still comes from the origin's
+`Cloudflare-CDN-Cache-Control`. And force browser
 `cache-control` on canary HTML/`.data` to `public, max-age=0,
 must-revalidate`: the zone's Browser Cache TTL otherwise stamps ~4h of
 browser cache on documents and percent changes take hours to reach
@@ -168,7 +172,7 @@ config-on-deploy deliberately: they deserve a deployment record.
 | Inheriting the eyeball scheme from `request.url` | Under Flexible SSL the worker sees `http://` — force `originUrl.protocol = 'https:'`. |
 | Hand-written recursion guards | The platform already prevents same-zone worker recursion; a host-equality guard silently passes through 100% of traffic when the mounted host equals an origin. Delete them. |
 | `originUrl.hostname = x` | Drops the port; breaks non-443 origins in `wrangler dev`. Set `.host`. |
-| Assuming zone cache rules cover worker subrequests | They match the subrequest host, not the public hostname — documents stay DYNAMIC. `cacheEverything: true` on the subrequest; verify by ablation. |
+| Concluding "cache rules don't apply to subrequests" from a curl ablation | They do apply — but host-scoped expressions never match the origin host, and plain-curl probes can hit bot-bypass rules (cache:false), poisoning the experiment. Test with GET + browser UA and a rule keyed on the origin `full_uri` before believing any "rules don't work" conclusion. |
 | Letting zone Browser Cache TTL reach canary documents | Returning visitors keep old HTML for hours after a percent change. Stamp `max-age=0, must-revalidate` on HTML/`.data` in the worker. |
 | Trusting `curl -I` for cache checks | HEAD reports DYNAMIC even for cached objects; plain curl UA may match bot-bypass cache rules. Probe with GET + a browser UA. |
 | Version directories in the R2 layout | Every deploy changes every asset URL → total cache bust. Hashes are the version; directories are project × env only. |
