@@ -69,6 +69,7 @@ SKILL/
 | [`dokploy-internal-oneshot`](skills/infrastructure/dokploy-internal-oneshot/SKILL.md) | Run ephemeral one-shot tasks inside a Dokploy project's internal network without exposing services publicly |
 | [`dokploy-traefik-traffic-split`](skills/infrastructure/dokploy-traefik-traffic-split/SKILL.md) | Canary two backends on one Dokploy domain with path-aware weighted+sticky Traefik routing; covers SPA asset trap and rollback |
 | [`edge-canary-split`](skills/infrastructure/edge-canary-split/SKILL.md) | Cookie-sticky canary rollout between two Vercel apps via a Cloudflare Worker, with hashed assets offloaded to R2 so they never traverse the worker |
+| [`electron-native-lib-extraction`](skills/infrastructure/electron-native-lib-extraction/SKILL.md) | Extract an in-app Electron native-module integration into a standalone source-distributed npm library with its release toolchain |
 | [`mx-space-remote-db-access`](skills/infrastructure/mx-space-remote-db-access/SKILL.md) | Remote `mx-space` PostgreSQL inspection and guarded updates via `ssh → docker exec → psql` |
 | [`mx-space-remote-translation-audit`](skills/infrastructure/mx-space-remote-translation-audit/SKILL.md) | Remote translation auditing — coverage checks, hash freshness, and route-level verification |
 | [`nextjs-rsc-to-react-router-v8-migration`](skills/infrastructure/nextjs-rsc-to-react-router-v8-migration/SKILL.md) | Migrate a Next.js App-Router / RSC site to React Router v8 for CDN-cacheable SSR under multi-locale cost pressure |
