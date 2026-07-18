@@ -39,7 +39,25 @@ mxs file upload ./shot.png --type image --silent   # → { url, name }
 mxs file upload ./diagram.excalidraw --type file --silent
 ```
 
-- Images: reference the returned URL via `<img src="..." />`.
+- Images: an `<img>` node MUST carry `width`, `height`, and `thumbhash` —
+  not just `src`. The mx-core server only extracts image dimensions for
+  non-lexical posts (`ImageService.saveImageDimensionsFromMarkdownText` is
+  gated behind `!isLexical(doc)`), and blog posts are stored as Lexical, so a
+  bare `<img src="..." />` leaves the reader with no aspect-ratio box (layout
+  shift) and no blur placeholder. Compute the values with the bundled script
+  and inline them:
+
+  ```bash
+  # Run from a project whose node_modules has sharp + thumbhash
+  # (e.g. mx-core/apps/core). Accepts local paths or the uploaded URL.
+  node scripts/image-meta.mjs --xml https://object.innei.in/.../shot.jpg
+  # → <img src="…" width="1504" height="1152" thumbhash="UfcJHYK7uKhwd4aedieXjAlzcwOJ" />
+  ```
+
+  The script mirrors the editor's `computeImageMeta` and the server's
+  `ImageService` byte-for-byte (longest side resized to 100px, RGBA →
+  `rgbaToThumbHash` → base64), so the placeholder matches a natively-uploaded
+  image. Drop `--xml` for JSON output.
 - Excalidraw: the `<excalidraw>` body accepts a bare URL (remote snapshot) —
   `<excalidraw>https://…/diagram.excalidraw</excalidraw>` — instead of inline
   CDATA JSON. Prefer remote for large scenes; keep small scenes inline so the
