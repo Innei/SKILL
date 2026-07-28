@@ -9,7 +9,7 @@ description: >
   "productize this session"、"publish this as a skill and a writeup".
 metadata:
   author: innei
-  version: "0.11.0"
+  version: "0.12.0"
 ---
 
 # session-to-skill-and-blog
@@ -40,6 +40,7 @@ actual work:
 | [`references/publish-flow.md`](./references/publish-flow.md) | When previewing / creating / editing the post — `mxs preview`, draft create, round-trip, stage/apply. |
 | [`references/widget-template/`](./references/widget-template/DESIGN.md) | When authoring a new `<dynamic>` widget — Yohaku-language UI/UX guide (`DESIGN.md`) + working vanilla skeleton (`template.mjs`, self-contained tokens, protocol plumbing). |
 | `references/envelope.template.xml`                          | Copy as the post envelope before pasting the LiteXML body.                                       |
+| [`no-ai-slop`](https://github.com/petergyang/no-ai-slop) (external) | After the draft is written, before publishing — detect-mode sweep for AI-tell patterns beyond the five hard bans. Detect, never auto-edit. |
 
 For LiteXML tag syntax itself, load the litexml-authoring skill (fresh via
 `load-litexml.sh`) — this skill governs *whether/when*, that one governs *how*.
@@ -159,6 +160,11 @@ drafting. The two rules that govern node use:
   exploration, algorithm step-through, perceptible difference, self-check —
   see "When interaction teaches" in `node-usage.md`).
 
+Once the draft is complete, sweep it in detect mode against
+[`no-ai-slop`](https://github.com/petergyang/no-ai-slop) — name each
+pattern, quote the line, fix by hand. Never hand it the draft to rewrite;
+an auto-edit flattens the persona voice the earlier rules protect.
+
 Medium: default LiteXML (for Innei's blog). Load the authoring guide fresh:
 
 ```bash
@@ -232,6 +238,8 @@ Post-publication edits prefer `stage` / `apply`, else `get-post.sh` /
       hard bans (meta-narrative, fixed-phrase labels, closing recap,
       decorative callouts) appear; Willison transparency, Abramov arc,
       Antirez 断语; em-dashes sparing.
+- [ ] `no-ai-slop` detect sweep run on the finished draft; every named
+      pattern either hand-fixed or justified in one clause. No auto-rewrite.
 - [ ] Visuals follow `visuals.md`: ≥ 3 Excalidraw diagrams for substantial
       `site-owner` posts, each answering a named question.
 - [ ] Node audit passed (`node-usage.md`): every non-prose node holds a

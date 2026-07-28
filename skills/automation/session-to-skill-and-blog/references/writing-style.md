@@ -147,6 +147,37 @@ outright; none is a budget to spend.
 5. **Decorative callouts.** `<alert>`/`<banner>` for nuance, intros, or
    pointers (budgets in node-usage.md: default zero for both).
 
+## Extended sweep — `no-ai-slop`
+
+The five hard bans are the ones this workflow keeps re-committing. For the
+wider surface, run the finished draft through
+[`no-ai-slop`](https://github.com/petergyang/no-ai-slop) in **detect mode**
+("audit this draft, name each pattern, quote the line, don't rewrite")
+before publishing. Detect, not edit: an auto-rewrite flattens Innei's
+voice, which is exactly what the persona rules are protecting.
+
+Its em-dash budget and its ban on summary-recap endings restate rules
+already stated above. Everything else is additive. The patterns that
+survive translation into Chinese technical prose:
+
+| Pattern                  | Chinese shape to catch                                    | Fix                                     |
+| ------------------------ | --------------------------------------------------------- | --------------------------------------- |
+| Binary contrasts         | 「这不是 X，而是 Y」「问题不在 X，在 Y」                   | 直接说 Y                                |
+| Faux-insight setups      | 「大多数人不知道的是」「很少有人提到」                     | 删掉铺垫，让判断自己站住                |
+| Colon reveals            | 「真正让它跑起来的细节：一个独立的 agent 打分」            | 写成完整句子；冒号留给列表和引用        |
+| Superficial `-ing`       | 「……，体现了 / 彰显了 / 反映出对 X 的重视」                | 换成具体后果                            |
+| Importance puffery       | 「标志着一个重要节点」「起到了关键作用」                   | 陈述事实，让读者判断它重不重要          |
+| Weasel attribution       | 「业界普遍认为」「有研究表明」                             | 指名来源，否则删掉这句                  |
+| Synonym cycling          | 同一个东西轮着叫 agent / 助手 / 工具                       | 认准一个词，重复用                      |
+| Negative listing         | 「不是 A。不是 B。是 C。」                                 | 只说 C                                  |
+| Dramatic fragmentation   | 「就这样。就这么简单。」                                   | 完整句子                                |
+| Fake-profound kicker     | 结尾拔高成比喻或金句                                       | 删掉，停在最后一个具体句子上            |
+| Formatting slop          | 标题带 emoji、句中随手加粗、两句话就开一个小标题           | 格式跟着内容走                          |
+
+The banned-word list is English (`delve`, `leverage`, `robust`,
+`transformative`…); the Chinese equivalents are 「赋能」「抓手」「闭环」
+「深度赋予」这类词。Same rule: cut them.
+
 ## Structure
 
 The body differs by persona; within each, section shape is free (see
