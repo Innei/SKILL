@@ -45,6 +45,9 @@ sweep.
   count (3 lenses printed side by side).
 - `scripts/bucketize.py` — attributes every file to the first matching
   bucket prefix and sums pure-code lines per bucket.
+- `scripts/render-report.py` — renders the final report as a standalone
+  HTML file (light/dark, verdict chips, share bars) from a JSON data
+  file; schema in `references/report-data.example.json`.
 
 ## Workflow
 
@@ -53,7 +56,7 @@ sweep.
 [2] Inventory surface   parallel read-only agents, one per layer
 [3] Attribute lines     bucketize.py: every line -> exactly one bucket
 [4] Verdict per block   5 tiers, judged vs standalone-alternative cost
-[5] Report              table + tier commentary + squeeze list
+[5] Report              JSON data -> render-report.py -> HTML + open
 ```
 
 ### [1] Pin the lens
@@ -132,6 +135,19 @@ cost fell, review/maintenance cost didn't; the metric that matters is
 features per maintenance unit, and a ~1:1 test ratio is agent-era
 scaffolding, not bloat.
 
+To ship it as a page: fill a JSON data file following
+`references/report-data.example.json` (in prose fields `[[…]]` renders
+bold, `((…))` renders accent-highlight), then
+
+```bash
+python3 scripts/render-report.py report-data.json report.html && open report.html
+```
+
+Output is self-contained HTML (inline CSS, system fonts, light/dark).
+When a verdict gets challenged and revised, keep the row, annotate it
+(REV note in eyebrow/footer + a breakdown in its `sub`), and re-render —
+an audit that silently rewrites itself loses its authority.
+
 ## Common pitfalls
 
 | Mistake | Fix |
@@ -146,6 +162,7 @@ scaffolding, not bloat.
 | Catch-all bucket swallowing a subsystem | Order prefixes specific → general; always print the infra-bucket breakdown and chase anything unexpectedly large. |
 | Verdict by size alone | A 10k-line block can be the highest-leverage asset (device gateway) and an 80k block half-waste (provider variants). Judge vs standalone-alternative cost. |
 | Global verdict only | "Worth it overall" helps nobody decide anything. The per-block table with tiers is the deliverable; the global number is its summary row. |
+| Defending a challenged verdict without drilling down | When a block's size surprises the requester ("why is settings 20k?"), re-aggregate that bucket one directory level deeper before answering. Route-named buckets often hide squatters: provider forms, feature pages living under a settings route, deprecated-but-routed dead pages. The challenge is usually a real finding. |
 
 ## Verification
 
@@ -160,3 +177,5 @@ scaffolding, not bloat.
 - [ ] Squeeze list items each carry a line estimate and a concrete fix.
 - [ ] Report states the ±10% attribution caveat and any excluded scopes
       (e.g. closed-source stubs).
+- [ ] `render-report.py` output opens cleanly in a browser; row count,
+      total, and share bars match the bucketize output.

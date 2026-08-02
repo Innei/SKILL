@@ -1,0 +1,50 @@
+{
+  "title": "<PROJECT> Codebase Value Audit",
+  "eyebrow": "AUDIT REPORT",
+  "date": "<YYYY-MM-DD> · <branch>",
+  "thesis": "Is <N> lines of pure code worth it? Verdict: [[bold text uses double square brackets]].",
+  "stats": [
+    { "v": "worth it", "k": "global verdict · squeeze ≈ X%", "accent": true },
+    { "v": "836,006", "k": "pure code lines (lens 3)" },
+    { "v": "1.84M", "k": "tracked TS/JS total (lens 1)" },
+    { "v": "41%", "k": "test + fixture share" }
+  ],
+  "scope": "Lens definitions, exclusions, the [[±10% attribution caveat]], and any out-of-scope areas (e.g. closed-source stubs).",
+  "table_title": "All sub-products + base layer",
+  "table_sub": "Sorted by pure-code lines, descending. Bars scale to the largest sub-product.",
+  "rows": [
+    { "name": "Core chat", "sub": "optional second line under the name", "tier": "a", "verdict": "worth it", "lines": 131457, "share": "15.7%" },
+    { "name": "Model providers", "sub": "84 providers + catalogs", "tier": "c", "verdict": "50% discount", "lines": 83779, "share": "10.0%" },
+    { "name": "Agent runtime", "sub": "", "tier": "s", "verdict": "core asset", "lines": 46032, "share": "5.5%" },
+    { "name": "Proactive engine", "sub": "", "tier": "r", "verdict": "risk bet", "lines": 19982, "share": "2.4%" },
+    { "name": "Settings UI", "sub": "", "tier": "n", "verdict": "necessary cost", "lines": 20655, "share": "2.5%" },
+    { "name": "Team admin", "sub": "stub only — real impl elsewhere", "tier": "x", "verdict": "not judged", "lines": 4210, "share": "0.5%" }
+  ],
+  "base_row": { "name": "Base layer", "sub": "database · types · locales · shared components", "verdict": "healthy", "lines": 150345, "share": "18.0%" },
+  "tiers": [
+    {
+      "tier": "s", "label": "core asset", "title": "Highest-density investments", "sum": "113,501 lines · 13.6%",
+      "items": [
+        { "name": "Agent runtime", "lines": 46032, "comment": "One item per sub-product; justify vs the standalone-alternative cost." }
+      ]
+    },
+    {
+      "tier": "a", "label": "market price", "title": "Table stakes at normal size", "sum": "≈300,000 lines",
+      "intro": "Tiers may use an intro paragraph instead of (or in addition to) items. [[Double brackets]] bold, ((double parens)) accent-highlight."
+    }
+  ],
+  "squeeze_title": "Squeezable waste · ≈ X lines",
+  "squeeze": [
+    { "head": "Data-as-code in the model catalog (≈40k)", "detail": "Externalize to JSON / remote config." },
+    { "head": "Two coexisting workflow generations", "detail": "Finish the migration, delete the old one." }
+  ],
+  "conclusion": {
+    "big": "The one-paragraph verdict, with ((the key split highlighted)).",
+    "rest": "The closing argument answering the requester's actual question."
+  },
+  "footer": [
+    "METHOD · git ls-files → bucketize → blank/comment-stripped line count",
+    "SAMPLE · 8,371 files / 836,006 lines",
+    "DATE · <YYYY-MM-DD>"
+  ]
+}
