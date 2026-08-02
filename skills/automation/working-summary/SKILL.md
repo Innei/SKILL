@@ -200,13 +200,16 @@ The report's "Linear cycle snapshot" section MUST surface `in_progress.issues` u
 
 ### Step 3 — noise filter
 
-Drop the following from **Highlights** (they may still appear under a collapsible "Chore" section if substantial):
+The following never anchor a 要点 theme, and never justify one on their own:
 
 - i18n / locale-only sync
 - Submodule bumps, lockfile-only updates
 - Formatting-only, single-line config tweaks
+- Release PRs
 
-Substantive work (features, non-trivial fixes, infra, security) always appears in Highlights.
+They still appear under 仓库汇总 — the filter decides what gets narrated, not what gets recorded.
+
+Substantive work (features, non-trivial fixes, infra, security) is what theme selection draws from, and always appears in 仓库汇总 regardless of whether a theme picked it up.
 
 ## Report Synthesis
 
@@ -219,32 +222,56 @@ The output language is controlled by `output.language` in config (default `zh-CN
 - **Translated to `output.language`** — readable descriptions, framing prose, headers you author yourself, callout text, follow-up notes.
 - **Kept verbatim regardless of language** — fixed section labels (`In Progress`, `Features`, `Fixes`, `Refactor`, `Build / CI / Deps`, etc.), and **raw PR / issue / commit titles** (these are quoted verbatim for traceability — never translate them).
 
-So even when `language: zh-CN`, a Highlights bullet looks like:
+So even when `language: zh-CN`, a 本周要点 theme looks like:
 
 ```
-- 在 ChatInput 中注册 ReactMentionPlugin，使 @ 插入的 mention 节点真正渲染 — `fix(editor): add ReactMentionPlugin to ChatInput for mention node rendering` [lobehub#13415](https://...)
+**2. 首屏与冷启动性能治理** — SPA 启动改成按需驱动，桌面把 tray / updater / i18n 等非首帧工作移到 BrowserWindow 创建之后；官网 root loader 的冷请求原本 TTFB 1369ms。[lobehub#17577](https://…) · [lobehub#17811](https://…) · [cloud#1230](https://…)
 ```
 
-The prose half is 中文; the backtick-quoted raw title and the link text stay English (or whatever the original PR author wrote).
+…and a 仓库汇总 bullet keeps the raw title verbatim:
+
+```
+- `⚡️ perf: make SPA startup demand-aware` [#17577](https://…)
+```
+
+The prose is 中文; the backtick-quoted raw titles and the link text stay English (or whatever the original PR author wrote).
 
 The synthesized language applies to descriptions even when the **PR body** is in a different language — the description is _your_ paraphrase, written in `output.language`, distilled from the body.
 
 ### Sections
 
 1. **Header** — period title, date range, workday/holiday count, repo count + activity totals.
-2. **一、全局总览** (Global Overview) — All repos aggregated into a single themed listing. Group by `feat / fix / refactor / build·ci·deps`. Each entry has the form:
+
+2. **一、本周要点** (Highlights) — **the section the user actually reports from.** Everything else in the report exists to back this section up.
+
+   Cluster the window's merged PRs and loose commits into **3–6 cross-repo themes**. A theme is a storyline several PRs advance together — an architecture migration and the defect class it exposed, one performance push landing across OSS + Cloud, a single capability shipped through three repos. It is emphatically **not** "the N most important PRs".
+
+   Each theme:
 
    ```
-   - <readable one-sentence description in PR-author's language> — `<raw PR title>` [<repo>#<num>](url)
+   **N. <theme name>** — <1-2 sentences: what changed and why it mattered> <2-5 key PR links>
    ```
 
-   The readable description is **synthesized from the PR body** (`prs_merged[].body` is included for this purpose). It explains _what was done and why_, in plain prose. The raw title + link follow as traceability — never omit them. Commits without a PR ref get the same treatment but link to the commit URL.
+   Rules:
 
-3. **二、仓库汇总** (Per-Repo Breakdown) — Same items regrouped by repository. Use compact one-line bullets here (no need to repeat the full readable description) since the global overview already carries the prose.
+   - Order by significance. Not chronology, not repo, not PR count.
+   - Lead with the **user-visible consequence or the measured number**, not the refactor's name — "按发送没反应"、"冷启动 TTFB 1369ms"、"非英文系统首启显示英文" beat "重构了 router 层".
+   - Synthesize from PR bodies (`prs_merged[].body` is collected for this). A theme that only restates PR titles has failed.
+   - Each PR belongs to at most one theme. PRs that fit no theme simply do not appear here — 仓库汇总 still records them.
+   - Do **not** pad to reach 6. Three real threads beat six manufactured ones. If a "theme" has one PR under it, it is not a theme.
+   - Mention the theme's PR count when it is large ("涉及 5 个 PR") — that is the part that reads as a week's work.
+
+3. **二、仓库汇总** (Per-Repo Breakdown) — every merged PR and loose commit, grouped by repository, as compact one-line bullets:
+
+   ```
+   - `<raw PR title>` [#<num>](url)
+   ```
+
+   This is the **traceability index**, not prose — where a reader goes to confirm something shipped. Head each repo with `### <owner/repo> *(N commits)*` (the `*(N commits)*` suffix is parsed by `render_html.py` into a count badge) plus one framing sentence about what that repo saw this week. Do not restate the 要点 prose here.
 
 4. **三、未合并 / 跟进** (Follow-ups) — closed-but-unmerged PRs needing reopen, open PRs, assigned issues still open, stale work, Linear issues without PRs.
 
-5. **Linear cycle snapshot** — if Linear is configured and connected.
+5. **四、Linear cycle snapshot** — if Linear is configured and connected.
 
 Use Obsidian callouts where appropriate:
 
