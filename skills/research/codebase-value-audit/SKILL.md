@@ -45,6 +45,8 @@ sweep.
   count (3 lenses printed side by side).
 - `scripts/bucketize.py` — attributes every file to the first matching
   bucket prefix and sums pure-code lines per bucket.
+- `scripts/drill-bucket.py` — aggregates one bucket's lines per
+  directory at a chosen depth; mandatory before verdicts (step 4).
 - `scripts/render-report.py` — renders the final report as a standalone
   HTML file (light/dark, verdict chips, share bars) from a JSON data
   file; schema in `references/report-data.example.json`.
@@ -107,9 +109,41 @@ step 2's inventory, run it against the file list from step 1. Rules:
 
 ### [4] Verdict per block
 
-Judge each sub-product's pure-code count against **what acquiring that
-capability standalone would cost** (build or adopt), not against zero.
-Five tiers:
+**No verdict without a drill-down.** Before judging any bucket ≥ ~15k
+lines, run `scripts/drill-bucket.py <file-list> <depth> <prefix...>` and
+scan its top directories for the five water categories:
+
+| Category | What it looks like |
+| --- | --- |
+| DEAD-ROUTED | deprecated pages/components still imported or routed — verify with grep against router configs and import sites, never by name alone |
+| DATA-AS-CODE | large TS files that are pure declarations (catalogs, menus, prompt text) |
+| SQUATTER | content semantically belonging to another domain living under this bucket's paths (feature pages under a settings route) |
+| PARALLEL-DUP | two generations/implementations of the same thing coexisting |
+| OVERSIZED | files past the repo's own size convention — count and total them |
+| FIXTURE-IN-PROD | test fixtures / dev harnesses living outside test dirs, counted as product code |
+
+Bucket-level verdicts issued without this pass systematically miss mixed
+buckets: a "settings" bucket can be 60% provider forms + squatting
+feature pages + dead routes, and the whole-bucket verdict ("necessary
+cost") will be confidently wrong. Parallelize: one read-only subagent
+per 2–3 buckets, each returning findings with line estimates and
+file-path evidence; require them to verify DEAD claims and to say
+"clean" when a category is empty — invented water is worse than missed
+water.
+
+**Then refute before publishing.** Every water claim from the first pass
+gets attacked in a second adversarial round: prompt agents to disprove
+each claim with import graphs, normalized diffs, and actual-wiring
+traces. Expect casualties — in the audit this skill came from, 5 of 8
+first-round claims fell (a "duplicate subsystem" was a dependency; "two
+workflow generations" were layers; an unused-keys report was 43% false
+positives). Publish only claims that survive, and record the refuted
+ones in the report as corrections — an audit that shows its own
+overturned accusations is more credible, not less.
+
+Then judge each sub-product's pure-code count against **what acquiring
+that capability standalone would cost** (build or adopt), not against
+zero. Five tiers:
 
 | Tier | Criteria |
 | --- | --- |
@@ -163,6 +197,10 @@ an audit that silently rewrites itself loses its authority.
 | Verdict by size alone | A 10k-line block can be the highest-leverage asset (device gateway) and an 80k block half-waste (provider variants). Judge vs standalone-alternative cost. |
 | Global verdict only | "Worth it overall" helps nobody decide anything. The per-block table with tiers is the deliverable; the global number is its summary row. |
 | Defending a challenged verdict without drilling down | When a block's size surprises the requester ("why is settings 20k?"), re-aggregate that bucket one directory level deeper before answering. Route-named buckets often hide squatters: provider forms, feature pages living under a settings route, deprecated-but-routed dead pages. The challenge is usually a real finding. |
+| Trusting a static "unused" report | An unused-i18n-keys report was 43% false positives: dynamic key construction, string-literal keys inside config objects, and plural suffixes all defeat static detection. Sample-verify against those three mechanisms before acting; a report whose own statistics are self-contradicting (usage rate > 100%) is telling you something. |
+| Convicting by name or shape | "workflows/ vs workflows-hono/" looked like two generations — it was business logic + HTTP adapter, layered. "PluginDevModal" looked legacy — it was misnamed MCP UI. Prove duplication with import graphs and normalized diffs; naming is not evidence. |
+| Treating a registry/identifier file as the wiring | An identifiers array turned out cosmetic (tools wired via register.ts and server runtimes); a desktop controllers registry.ts turned out type-only (runtime uses import.meta.glob). Find the mechanism that actually loads things before declaring anything unregistered/dead. |
+| Publishing the first round's water list | Run the refutation round (step 4). First-pass water claims are hypotheses; in practice a large fraction die under import-graph scrutiny, and shipping them unverified torches the audit's credibility on the claims that were right. |
 
 ## Verification
 
@@ -171,6 +209,9 @@ an audit that silently rewrites itself loses its authority.
 - [ ] Bucket sums equal the lens-3 total exactly; file list was
       `sort -u`'d.
 - [ ] Infra/catch-all breakdown inspected; nothing unexplained > ~5%.
+- [ ] Every bucket ≥ ~15k lines went through the drill-down pass; each
+      water finding carries a category, a line estimate, and verified
+      evidence paths.
 - [ ] Every sub-product has: lines, share, tier verdict, and a one-line
       justification referencing a standalone alternative or a concrete
       waste observation.
