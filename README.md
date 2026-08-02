@@ -81,7 +81,6 @@ SKILL/
 
 | Skill | Purpose |
 | ----- | ------- |
-| [`chat-export-report`](skills/research/chat-export-report/SKILL.md) | Analyze exported chat logs (WeChat / Telegram / iMessage / QQ) into layered, drill-down reports grounded in original quotes |
 
 ### Writing
 
@@ -89,8 +88,6 @@ SKILL/
 
 | Skill | Purpose |
 | ----- | ------- |
-| [`generate-design-md`](skills/writing/generate-design-md/SKILL.md) | Produce `DESIGN.md` for a brand/site from live CSS and tokens (awesome-design-md format) |
-| [`holding-analytical-judgment`](skills/writing/holding-analytical-judgment/SKILL.md) | Keep analysis grounded in evidence; do not flip conclusions for mood alone (code review, diagnosis, post-mortems) |
 
 ## Agent Integration
 
@@ -137,3 +134,7 @@ git config core.hooksPath .githooks
 ```
 
 If you must bypass it for a non-skill commit, use `git commit --no-verify`.
+| [`chat-export-report`](skills/research/chat-export-report/SKILL.md) | Analyze exported chat logs (WeChat / Telegram / iMessage / QQ) into layered, drill-down reports grounded in original quotes |
+| [`codebase-value-audit`](skills/research/codebase-value-audit/SKILL.md) | Audit whether a codebase's size is justified: strict LOC accounting, product-surface inventory, per-sub-product line attribution and worth verdicts |
+| [`generate-design-md`](skills/writing/generate-design-md/SKILL.md) | Produce `DESIGN.md` for a brand/site from live CSS and tokens (awesome-design-md format) |
+| [`holding-analytical-judgment`](skills/writing/holding-analytical-judgment/SKILL.md) | Keep analysis grounded in evidence; do not flip conclusions for mood alone (code review, diagnosis, post-mortems) |
