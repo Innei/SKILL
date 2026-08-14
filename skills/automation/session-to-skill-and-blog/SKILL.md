@@ -1,46 +1,45 @@
 ---
 name: session-to-skill-and-blog
 description: >
-  Turn a completed non-trivial engineering session into a paired durable
-  artifact: (1) a reusable skill under Innei's personal SKILL repo, and (2) a
-  published blog post that distills the lessons, linked to the skill via
-  the attached skill card (meta.skillIds — never mentioned in the body).
-  Triggers on "把这个过程写成 skill 再写一篇 blog"、"沉淀一下这次的折腾"、
-  "productize this session"、"publish this as a skill and a writeup".
-metadata:
-  author: innei
-  version: "0.12.0"
+  Convert a completed engineering session into a narrative blog and zero or
+  more reusable operational skills. Use when Innei explicitly asks to
+  productize, document, or publish a finished session ("写成 skill 再写一篇
+  blog", "沉淀一下这次的折腾", "productize this session", or "publish this as
+  a skill and a writeup"). Classify project-local facts separately.
 ---
 
 # session-to-skill-and-blog
 
-Capture a hard-won session as a **pair**: an operational skill (durable
-artifact) and a narrative blog (discoverability layer linking to it).
+Turn session evidence into the appropriate durable outputs:
 
-Use when the session had ≥ 1 non-obvious pitfall, a novel workflow worth
-keeping, or Innei said "写成 skill / productize this". Skip for pure
-interactive Q&A or project-specific lessons (those go in the project's
-`CLAUDE.md`).
+- a blog that explains the experience, reasoning, and conclusion;
+- zero or more skills that let a future agent execute reusable capabilities;
+- project documentation for facts and conventions that remain local.
 
-**Iron rule: skill first, blog second.** The blog attaches the skill via
-`meta.skillIds`, which only exists after the skill is pushed to mx-core.
-And SKILL.md's format forces operational completeness before narrative
-drama distorts the lessons.
+Do not force a one-to-one pair. One blog may attach no skill, one skill, or
+several skills; one skill may support several later blogs. The outputs share
+evidence, not structure.
+
+**Classify first. For every accepted skill candidate, author and push the
+skill before writing the blog.** This preserves the operational contract
+before narrative compression. If no candidate passes the skill gate, write
+the blog without inventing a skill.
 
 ## References
 
 This file is a thin index. Load the matching reference when you start the
 actual work:
 
-| File                                                       | When to load                                                                                    |
-| ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
-| [`references/writing-style.md`](./references/writing-style.md) | Before drafting prose — persona selection, Willison/Abramov/Antirez voice, punctuation, structure. |
-| [`references/node-usage.md`](./references/node-usage.md)   | Before using any extension node — deletion test, escalation ladder, scenario → node map, `<dynamic>` catalog rule, budgets, anti-patterns. |
-| [`references/visuals.md`](./references/visuals.md)         | When planning diagrams or uploading image assets — Excalidraw vs Mermaid, palette, ≥3-diagram rule, `mxs file upload`. |
-| [`references/publish-flow.md`](./references/publish-flow.md) | When previewing / creating / editing the post — `mxs preview`, draft create, round-trip, stage/apply. |
-| [`references/widget-template/`](./references/widget-template/DESIGN.md) | When authoring a new `<dynamic>` widget — Yohaku-language UI/UX guide (`DESIGN.md`) + working vanilla skeleton (`template.mjs`, self-contained tokens, protocol plumbing). |
-| `references/envelope.template.xml`                          | Copy as the post envelope before pasting the LiteXML body.                                       |
-| [`no-ai-slop`](https://github.com/petergyang/no-ai-slop) (external) | After the draft is written, before publishing — detect-mode sweep for AI-tell patterns beyond the five hard bans. Detect, never auto-edit. |
+| File | When to load |
+| ---- | ------------ |
+| [`references/writing-style.md`](./references/writing-style.md) | Before drafting prose — reading contract, title and slug, sections, narrative, argument, narrator, and anti-slop editing. |
+| [`references/node-usage.md`](./references/node-usage.md) | Before using any extension node — deletion test, escalation ladder, catalog rule. |
+| [`references/visuals.md`](./references/visuals.md) | When prose creates a visual-explanation question, or when uploading image assets. |
+| [`references/editorial-models.md`](./references/editorial-models.md) | Only when revising the editorial policy — primary-source research and derived principles. |
+| [`references/publish-flow.md`](./references/publish-flow.md) | When previewing / creating / editing / publishing the post. |
+| [`references/widget-template/`](./references/widget-template/DESIGN.md) | When authoring a new `<dynamic>` widget. |
+| `references/envelope.template.xml` | Copy as the post envelope before pasting the LiteXML body. |
+| `no-ai-slop` (via `load-no-ai-slop.sh`) | After the draft is written, before publishing — detect candidates, revise manually, rerun. |
 
 For LiteXML tag syntax itself, load the litexml-authoring skill (fresh via
 `load-litexml.sh`) — this skill governs *whether/when*, that one governs *how*.
@@ -50,122 +49,205 @@ For LiteXML tag syntax itself, load the litexml-authoring skill (fresh via
 `~/.config/innei-skills/config.json` (see `references/config.example.json`):
 
 ```json
-{ "skill_repo_dir": "~/git/innei-repo/skill" }
+{ "skill_repo_dir": "~/git/innei-repo/SKILL" }
 ```
 
-Missing key → fallback to `~/git/innei-repo/skill`.
+Missing key → fallback to `~/git/innei-repo/SKILL`.
 Domains: `infrastructure` / `automation` / `writing` / `research` / `content`.
 Prereqs once per machine: `npm i -g @mx-space/cli` (Node ≥ 22, needs the
 `draft` command group — check `mxs draft --help`); `mxs auth login`.
 
 ## Scripts
 
-Define `$S` once per session:
+Define `$S` once per session. Search known locations; the first that
+contains `resolve-skill-repo.sh` wins:
 
 ```bash
-S="$(realpath ~/.claude/skills/session-to-skill-and-blog)/scripts"
-# Codex: swap ~/.claude for ~/.codex
+S=""
+for cand in \
+  "$HOME/.claude/skills/session-to-skill-and-blog/scripts" \
+  "$HOME/.codex/skills/session-to-skill-and-blog/scripts" \
+  "$HOME/.agents/skills/session-to-skill-and-blog/scripts" \
+  "$(git rev-parse --show-toplevel 2>/dev/null)/.claude/skills/session-to-skill-and-blog/scripts" \
+  "$(git rev-parse --show-toplevel 2>/dev/null)/.agent/skills/session-to-skill-and-blog/scripts" \
+  "$(git rev-parse --show-toplevel 2>/dev/null)/skills/automation/session-to-skill-and-blog/scripts"
+do
+  [ -n "$cand" ] && [ -f "$cand/resolve-skill-repo.sh" ] && {
+    S="$(cd "$cand" && pwd)"; break
+  }
+done
+[ -n "$S" ] || { echo "error: cannot locate session-to-skill-and-blog/scripts" >&2; exit 1; }
+REPO="$(bash "$S/resolve-skill-repo.sh")"
 ```
 
-| Script                  | What it does                                                                                    |
-| ----------------------- | ----------------------------------------------------------------------------------------------- |
-| `resolve-skill-repo.sh` | Print absolute path to the SKILL repo (config-driven, with fallback).                           |
-| `scaffold-skill.sh`     | Create dir + stub SKILL.md + README row (alphabetical) + both flat symlinks; `git add` staged.  |
-| `load-litexml.sh`       | `degit` the latest `litexml-authoring` subtree (SKILL.md + `references/`) into `~/.cache/`.     |
-| `push-skill.sh`         | Idempotent `mxs snippet put sk/<name>/SKILL.md --type skill` from a SKILL.md path, plus every sibling asset file (`references/`, `scripts/`, …) as `--type text` under the same dir. Emits the snowflake id on stdout. |
-| `create-draft.sh`       | `mxs draft create` — native draft entity (no post yet), with `aiGen=2`, `--open` admin preview, `--silent` → `{ ok, id }`; optional `--skill-id <id>` repeated arg threads ids into `meta.skillIds`. |
-| `get-post.sh`           | `mxs post get <slug> --output xml` — round-trip step 1.                                         |
-| `update-post.sh`        | `mxs post update <slug> --file …` — round-trip step 2.                                          |
+| Script | What it does |
+| ------ | ------------ |
+| `resolve-skill-repo.sh` | Print absolute path to the SKILL repo (config-driven, with fallback). |
+| `scaffold-skill.sh` | Create dir + stub SKILL.md + README row (alphabetical, domain-scoped) + both flat symlinks; `git add` staged. |
+| `load-litexml.sh` | `degit` the latest `litexml-authoring` subtree into `~/.cache/`. |
+| `load-no-ai-slop.sh` | `degit` the latest `no-ai-slop` skill into `~/.cache/`. If unavailable, report it and continue with the internal hard-ban sweep. |
+| `push-skill.sh` | Idempotent `mxs snippet put sk/<name>/SKILL.md --type skill`, plus sibling assets as `--type text`. Emits the snowflake id on stdout. |
+| `create-draft.sh` | `mxs draft create` with `aiGen=2`, `--open`, `--silent` → `{ ok, id }`; `--skill-id <id>` (repeatable) threads ids into `meta.skillIds`. |
+| `get-post.sh` | `mxs post get <slug> --output xml` — round-trip step 1. |
+| `update-post.sh` | `mxs post update <slug> --file …` — strips `<state>`, then updates. |
+| `image-meta.mjs` | Emit `width` / `height` / `thumbhash` for a LiteXML `<img>`. Run from a project that has `sharp` + `thumbhash` (e.g. mx-core). |
 
 ## Workflow
 
 ```text
-[1] Inventory session
-[2] Scaffold + author SKILL.md
-[3] Commit + push skill (to GitHub)
-[4] Push skill to mx-core (returns snowflake id)
-[5] Write blog
-[6] Publish via mxs with --skill-id
+[1] Inventory and classify session evidence
+[2] State and evaluate each capability thesis
+       rejected ──> blog or project documentation
+       accepted ──> one coherent skill
+[3] Scaffold, author, validate, commit, and push accepted skills
+[4] Push accepted skills to mx-core and collect their ids
+[5] Write the blog from the narrative evidence
+[6] Publish via mxs with zero or more --skill-id arguments
 ```
 
-### [1] Inventory
+### [1] Inventory and classify
 
-Scan the session for: decision points, pitfalls (symptom → cause → fix),
-inline code ≥ 15 lines (extract → `scripts/`), JSON/YAML ≥ 20 lines
-(extract → `references/` with `<PLACEHOLDER>` markers), verification
-commands, "I was wrong about X" moments (alert callouts in the blog).
+Collect decision points, failed assumptions, symptom-to-cause evidence,
+commands, reusable procedures, safety boundaries, verification results, and
+project-local facts. Classify each item by its future function:
 
-### [2] Scaffold + author
+| Destination | Include | Exclude |
+| ----------- | ------- | ------- |
+| Blog | Context, chronology, argument, representative failures, and interpretation | Exhaustive operating instructions |
+| Skill | Repeatable action, decision boundary, non-obvious constraint, and observable proof | Session chronology and personal reflection |
+| Project documentation | Repository-specific ownership, commands, architecture, and persistent local conventions | General reusable workflow |
+
+Treat code or configuration length only as a resource-planning signal. It is
+not evidence that a skill should exist.
+
+### [2] State and evaluate the capability thesis
+
+Write this sentence before scaffolding a candidate:
+
+> This skill helps an agent **[action] [target]** when **[trigger]**, while
+> preserving **[constraint]**, and verifies success through **[observable
+> outcome]**.
+
+Reject or redirect the candidate unless every gate passes:
+
+| Gate | Pass condition | If it fails |
+| ---- | -------------- | ----------- |
+| Triggerability | A concrete future user request can activate it. | Keep the material in the blog. |
+| Repeatability | The action or decision is likely to recur. | Use the blog or project documentation. |
+| Knowledge delta | It teaches non-obvious procedure, local integration, or a hard-won failure boundary. | Do not create a skill. |
+| Coherence | It has one trigger family, one operational target, and one primary outcome. | Split independent capabilities. |
+| Verifiability | Success is externally observable. | Treat it as analysis or reference material. |
+| Stability | The core method survives routine version changes. | Move volatile facts to references or project documentation. |
+| Boundary clarity | It states exclusions and stopping conditions. | Narrow the capability. |
+
+Name accepted skills with a concise, verb-led target and action. Prefer
+`split-dokploy-traffic-safely` over `traefik-notes`, and
+`migrate-nextjs-rsc-under-cdn-constraints` over `nextjs-migration`.
+
+Keep one capability thesis per skill. Split candidates when their triggers,
+targets, or completion criteria can vary independently. Place cross-project
+capabilities in this repository; place facts that only future work in one
+repository needs in that repository's agent or project documentation.
+
+Plan bundled resources by function, not by arbitrary line count:
+
+| Resource | Add when |
+| -------- | -------- |
+| `scripts/` | An operation is deterministic, fragile, or repeatedly rewritten. |
+| `references/` | Schemas, protocols, detailed examples, or volatile facts would obscure the operational core. |
+| `assets/` | The skill must copy or transform an output resource. |
+
+Do not create empty resource directories.
+
+### [3] Scaffold, author, and push accepted skills
 
 ```bash
 bash "$S/scaffold-skill.sh" <domain> <skill-name> "<one-line purpose>"
 ```
 
-Fill in the stub. SKILL.md sections in order: frontmatter (`name`,
-`description` starting "Use when…", ≤ 500 chars) → overview → scope →
-inputs → files provided → workflow ASCII → per-step → **Common Pitfalls
-table** (mandatory) → rules → verification checklist. Target ≤ 250 lines.
+Use the scaffold once for each accepted capability. Author the skill as an
+execution interface for a future agent, not as a compressed version of the
+blog.
 
-### [3] Commit + push
+Every generated skill requires this contract:
+
+| Required element | Standard |
+| ---------------- | -------- |
+| Frontmatter | Include only `name` and `description`. Put both capability and all trigger conditions in `description`; do not repeat a body-level "When to use" section. |
+| Capability boundary | State the outcome, prerequisites, exclusions, and stopping conditions. |
+| Operational core | Give the shortest sufficient procedure or decision path in dependency order. Use imperative instructions. |
+| Verification | Prove the externally meaningful outcome, including safety checks where relevant. |
+
+Add the following sections only when they carry real operational information:
+
+| Conditional element | Add when |
+| ------------------- | -------- |
+| Decision table | Multiple conditions select different actions. |
+| Flow or architecture diagram | Ownership, sequence, or data flow is difficult to understand linearly. |
+| Pitfalls | Observed failures have recognizable symptoms and actionable fixes. |
+| Rollback | The procedure changes external or difficult-to-recover state. |
+| Examples | An example materially clarifies input, output, or a decision boundary. |
+
+Do not emit empty sections to satisfy a template. Do not repeat generic
+technical knowledge. Keep the main file below 500 lines and use progressive
+disclosure for details.
+
+Validate each folder with the available skill validator before committing.
+Then commit and push the accepted skill:
 
 ```bash
-REPO="$(bash "$S/resolve-skill-repo.sh")"
-cd "$REPO" && git commit -m "feat: add <skill-name> skill" && git push
+cd "$REPO" && git add "skills/<domain>/<skill-name>" && git commit -m "feat: add <skill-name> skill" && git push
 ```
 
-The pre-commit hook enforces: README row exists; both flat symlinks
-present and resolved. Skill URL (for reference only — never mentioned in
-the blog body; the skill card carries the linkage):
+The pre-commit hook enforces: README row exists **inside the matching
+domain table**; both flat symlinks present and resolved. Skill URL (for
+reference only — never mentioned in the blog body; the skill card carries
+the linkage):
 `https://github.com/Innei/SKILL/tree/main/skills/<domain>/<skill-name>`
 
-### [4] Push skill to mx-core
+### [4] Push accepted skills to mx-core
 
-The blog post will reference this skill via `meta.skillIds`. Push the
-SKILL.md to mx-core's snippet store so the reader-facing `<SkillCardList>`
-on the article page has something to render and the public raw URL
+For every accepted skill, push its SKILL.md to mx-core's snippet store so the
+reader-facing `<SkillCardList>` can render it and the public raw URL
 (`${MXS_API_URL}/api/v3/s/sk/<name>`) exists.
 
 ```bash
 SKILL_ID=$(bash "$S/push-skill.sh" "$REPO/skills/<domain>/<skill-name>/SKILL.md")
 ```
 
-The script is idempotent — `mxs snippet put` upserts by path, so re-runs
-update the snippet at `sk/<frontmatter-name>/SKILL.md` instead of creating
-a duplicate. `sk/` is the canonical skill root: the backend normalizes
-skill-type snippets to it, and Yohaku's `/skills/<name>` pages read from
-`/s/sk/<name>/...`.
-Sibling asset files (`references/*.md`, `scripts/*`, anything non-hidden
-next to SKILL.md) are pushed as `--type text` snippets under the same
-`sk/<name>/` dir — the backend rejects `--type skill` for any path not
-ending in `/SKILL.md`, and without them relative links inside SKILL.md
-404 on the public site.
+Run the command once per skill and retain every returned id. The script is
+idempotent — `mxs snippet put` upserts by path.
+Sibling asset files are pushed as `--type text` under `sk/<name>/` —
+the backend rejects `--type skill` for any path not ending in `/SKILL.md`,
+and without them relative links inside SKILL.md 404 on the public site.
 Capture the returned id; step [6] threads it through `create-draft.sh`.
 
-If the skill never reaches mx-core, the blog still publishes — readers
-just won't see the install card. That trade-off is fine when mx-core is
-offline; do not block the blog on it.
+If a skill never reaches mx-core, the blog may still publish without that
+install card. If no skill candidate passed the gate, skip this step entirely.
 
 ### [5] Write the blog
 
-Load [`writing-style.md`](./references/writing-style.md) (persona + voice),
-[`node-usage.md`](./references/node-usage.md) (which nodes the content
-earns), and [`visuals.md`](./references/visuals.md) (diagram plan) before
-drafting. The two rules that govern node use:
+Load [`writing-style.md`](./references/writing-style.md),
+[`node-usage.md`](./references/node-usage.md), and
+[`visuals.md`](./references/visuals.md) before drafting. Do not restate
+those rules here.
 
-- **Deletion test**: rewrite the candidate node as a plain paragraph; if no
-  information is lost, the node was decoration — don't use it.
-- **Escalate, never skip**: prose → verbatim artifacts → structured facts →
-  semantic signal → diagram/media → containers → interactive. Interactive
-  enters only when the reader's action carries the lesson (parameter
-  exploration, algorithm step-through, perceptible difference, self-check —
-  see "When interaction teaches" in `node-usage.md`).
+After choosing the reader contract and article spine, derive a working title
+and stable slug. Finalize the title after the draft proves its central claim;
+do not allow a sharper generalization to erase the defining technology or
+system from the title.
 
-Once the draft is complete, sweep it in detect mode against
-[`no-ai-slop`](https://github.com/petergyang/no-ai-slop) — name each
-pattern, quote the line, fix by hand. Never hand it the draft to rewrite;
-an auto-edit flattens the persona voice the earlier rules protect.
+Once the draft is complete:
 
-Medium: default LiteXML (for Innei's blog). Load the authoring guide fresh:
+```bash
+SLOP_CACHE=$(bash "$S/load-no-ai-slop.sh") || {
+  echo "no-ai-slop unavailable; continue with the internal hard-ban sweep"
+}
+# Read $SLOP_CACHE/SKILL.md. Detect candidates only; revise them by hand,
+# rerun the sweep, and leave no unresolved finding. Never auto-rewrite.
+```
+
+Medium: default LiteXML (for Innei's blog).
 
 ```bash
 LITEXML_CACHE=$(bash "$S/load-litexml.sh")
@@ -174,81 +256,61 @@ LITEXML_CACHE=$(bash "$S/load-litexml.sh")
 
 Plain Markdown is fine when no haklex-specific tags are needed.
 
+Do not convert the skill body into article sections. Reconstruct the blog from
+the narrative evidence: establish the problem, expose the consequential
+decisions, support claims with concrete evidence, and state the resulting
+view. A rejected skill candidate may still supply valuable narrative material.
+
 ### [6] Publish via `mxs`
 
-Follow [`publish-flow.md`](./references/publish-flow.md): preview →
-create a **native draft entity** with the skill id from step [4]
-(`bash "$S/create-draft.sh" /tmp/blog/article.xml --skill-id "$SKILL_ID"`
-→ `{ ok, id }`; no post exists yet) → iterate with
-`mxs draft update <draftId> --file …` → Innei approves →
-`mxs draft publish <draftId>` creates the live post in one step.
-Post-publication edits prefer `stage` / `apply`, else `get-post.sh` /
-`update-post.sh`. Paste the final URL back into the originating session.
+Follow [`publish-flow.md`](./references/publish-flow.md) end to end —
+including the post-`--file` metadata re-attach and the post-publish metadata
+verification. Pass zero or more `--skill-id` arguments according to the
+accepted and successfully pushed skills. Paste the final URL back into the
+originating session.
 
-## Common pitfalls
+## Failure boundaries
 
-| Mistake                                              | Fix                                                                                  |
-| ---------------------------------------------------- | ------------------------------------------------------------------------------------ |
-| Blog before skill                                    | Skill first. Always.                                                                 |
-| SKILL.md too long (all code inline)                  | Extract ≥ 15-line code to `scripts/`. Target ≤ 250 lines.                            |
-| Picking a persona by reflex instead of subject       | Default `pattern` (distilled judgments). Use `agent` only when the process *is* the point; `site-owner` only when ownership is Innei's. Apply the selection rule in `writing-style.md`. |
-| Writing a `pattern` post that reads as a session transcript | The session is evidence, not spine. If sections are chronological "I did X, Innei said Y", switch to `agent` or extract harder. |
-| Switching personas mid-post                          | Pick one and stay. If a `pattern` post needs Innei's ownership voice for one component, demote ownership to third person rather than switch. |
-| Node sprinkling ("use more node types")              | Node variety is not a quality metric. Apply the deletion test per node (`node-usage.md`). |
-| Pitfalls in prose only, no table                     | Pitfalls table is mandatory; it's the most-grep'd section.                           |
-| Mentioning the skill in the blog body (opener "操作手册见…", bottom CTA, banner) | Zero in-text mention. `meta.skillIds` renders the skill card; the body never discusses its own artifacts. |
-| `--no-verify` to bypass pre-commit hook              | Pre-commit invariants must all be in the same commit; fix the root cause instead.    |
-| Hardcoding `~/git/innei-repo/skill` in shell         | `bash "$S/resolve-skill-repo.sh"` — config-driven with fallback.                     |
-| Stale local `litexml-authoring` clone                | `bash "$S/load-litexml.sh"` refreshes via degit on every call.                       |
-| `pnpm --silent litexml …` from a haklex worktree     | `mxs preview <file>` — envelope-aware, no local clone, opens browser by default.     |
-| Skill written in Chinese                             | Skill in English (artifact). Blog in Innei's chosen language (default Chinese).      |
-| Creating a post (even with `--state draft`) to stage the article | Use the native draft entity: `create-draft.sh` → `mxs draft publish <id>`. A draft-state post pollutes the post list and risks the `<state>` unpublish trap; a draft entity cannot leak. Legacy fallback (`mxs` without the `draft` group): `post create --state draft` + `post publish <slug>`. |
-| `mxs draft publish` before Innei approves            | Publish creates the live post immediately. Only run it after Innei approves the admin preview. |
-| Skipping `push-skill.sh` and embedding only the GitHub URL | The blog `<SkillCardList>` reads `meta.skillIds`. Without `--skill-id`, the install card never renders even if the GitHub link is right. |
-| Hand-writing `--meta '{"aiGen":2,"skillIds":[…]}'`   | Use `create-draft.sh --skill-id <id>`; it jq-assembles meta and survives multiple ids without quoting bugs. |
-| `mxs draft update --file` after create               | It wipes `meta` (aiGen, skillIds) — re-attach with `mxs draft update <id> --meta '{"aiGen":2,"skillIds":[…]}'` after the LAST file update, and verify via `mxs draft get`. |
-| Trusting `draft publish` end-to-end                  | mxs ≤0.14.0 fails with "draft not found" (server snake_cases `ref_type`, CLI reads `refType`); and publish re-sends the snake_cased `meta` it fetched, so the live post gets `skill_ids` instead of `skillIds`. After publish, repair with `mxs post update <slug> --meta '{…camelCase…}'` and confirm the skill card renders on the live page. |
-| Re-running `draft create` to edit                    | `mxs draft update <draftId> --file …` — versioned, keeps history. After publication: `get-post.sh` → edit → `update-post.sh`. |
-| Updating a published post with the create envelope   | A stray `<state>draft</state>` unpublishes the live post — readers see it vanish. `update-post.sh` strips `<state>`; publish state changes only via `mxs post publish\|unpublish`. |
-| LiteXML body passed straight to `mxs --file`         | Wrap in `references/envelope.template.xml` first.                                    |
-| Previewing a bare LiteXML fragment (no `<doc>`)      | Inter-block whitespace becomes root-level text nodes → Lexical error #282. Keep authoring sources `<doc>`-wrapped; mxs wraps server-side. |
-| `<dynamic>` with an invented or adapted URL          | Catalog-gated: only URLs from `${MXS_API_URL}/s/dynamic-widgets-catalog`. No catalog → no `<dynamic>`; degrade per `node-usage.md`. |
-| Hand-writing `<summary>`                             | Omit. Server AI auto-generates and may overwrite.                                    |
-| Picking `<category>` without checking what exists    | `mxs category list --output llm` first; reuse existing slug.                         |
-| Auto-creating a new category                         | Requires explicit second confirmation from Innei before `mxs category create`.       |
-| Forgetting `aiGen=2`                                 | `create-draft.sh` already passes `--meta '{"aiGen":2}'` (carried through `draft publish`); on first update of a legacy post, re-attach with `mxs post update <slug> --meta '{"aiGen":2}'`. |
+Only mistakes that happen **before** the reference files are loaded.
+Publish, voice, and node rules live in those files.
+
+| Mistake | Fix |
+| ------- | --- |
+| Forcing every blog to have exactly one skill | Apply the semantic gate; allow zero, one, or several skills. |
+| Deriving the skill scope from the blog title | Define a future trigger, action, boundary, and observable outcome. |
+| Creating a skill because the session contains long code | Require repeatability and a non-obvious knowledge delta first. |
+| Combining independent triggers in one skill | Split by trigger family, target, and completion criterion. |
+| Copying the blog chronology into SKILL.md | Preserve only the executable method and decision boundaries. |
+| Adding empty workflow, pitfalls, or diagram sections | Include conditional sections only when they improve execution. |
+| Repeating trigger rules in a body-level "When to use" section | Put all triggering information in the frontmatter description. |
+| Blog before an accepted skill | Finish and push every accepted skill before drafting the blog. |
+| SKILL.md contains large deterministic procedures inline | Move repeated or fragile operations to `scripts/`; move detailed supporting material to `references/`. |
+| Mentioning the skill in the blog body | Zero in-text mention. `meta.skillIds` renders the skill card. |
+| `--no-verify` to bypass the pre-commit hook | Fix the root cause. The hook now requires the README row inside the matching domain table. |
+| Hardcoding the SKILL repo path in shell | `bash "$S/resolve-skill-repo.sh"`. |
+| Locating `$S` via `~/.claude/skills/...` only | Use the search loop above. |
+| Stale local `litexml-authoring` / `no-ai-slop` clone | `load-litexml.sh` / `load-no-ai-slop.sh` refresh via degit. If no-ai-slop cannot load, skip and say so. |
+| Skill written in Chinese | Skill in English. Blog in Innei's chosen language (default Chinese). |
+| Skipping `push-skill.sh` and embedding only the GitHub URL | The install card reads `meta.skillIds`. Without `--skill-id`, it never renders. |
+| Form / narrator / voice / slop mistakes | `writing-style.md`. |
+| Title states a lesson but drops the defining technology | Restore the identity anchor, then qualify it with the earned claim. |
+| Node sprinkling, invented `<dynamic>` URLs | `node-usage.md`. |
+| Draft/meta/`<state>` / category / publish mistakes | `publish-flow.md`. |
 
 ## Verification
 
-- [ ] `bash "$S/resolve-skill-repo.sh"` resolves before any write.
-- [ ] Skill dir at `$REPO/skills/<domain>/<skill-name>/`; long code in
-      `scripts/`, long configs in `references/`.
-- [ ] SKILL.md has frontmatter + scope + inputs + workflow + **pitfalls
-      table** + verification checklist.
-- [ ] Pre-commit hook passed; `git push` succeeded.
-- [ ] `bash "$S/push-skill.sh" …` returned a snowflake id; the public URL
-      `${MXS_API_URL}/api/v3/s/sk/<name>` resolves to the raw markdown.
-- [ ] Blog body has **zero** mention of the skill (no opener pointer, no
-      bottom CTA, no banner) — the skill card carries the linkage.
-- [ ] Voice follows `writing-style.md`: one persona throughout (default
-      `pattern`; `agent` only when the process is the point; `site-owner`
-      only when Innei owns the subject); every section passes the substance
-      check (transferable judgment woven in prose, real failure evidence,
-      reconstructible fix) without isomorphic section shapes; none of the
-      hard bans (meta-narrative, fixed-phrase labels, closing recap,
-      decorative callouts) appear; Willison transparency, Abramov arc,
-      Antirez 断语; em-dashes sparing.
-- [ ] `no-ai-slop` detect sweep run on the finished draft; every named
-      pattern either hand-fixed or justified in one clause. No auto-rewrite.
-- [ ] Visuals follow `visuals.md`: ≥ 3 Excalidraw diagrams for substantial
-      `site-owner` posts, each answering a named question.
-- [ ] Node audit passed (`node-usage.md`): every non-prose node holds a
-      one-clause deletion-test justification; alerts and banner default 0
-      (alert only for named real damage, banner only for post-level status);
-      interactive nodes enter only via a "When interaction teaches" scenario.
-- [ ] `mxs auth whoami` returned the expected user; `<category>` reuses an
-      existing slug (or Innei explicitly approved a new one).
-- [ ] Article staged as a native draft entity (`create-draft.sh` →
-      `{ ok, id }`); `mxs draft publish <draftId>` only after Innei
-      approves; `aiGen=2` set (rides into the post at publish).
-- [ ] Final post URL pasted back into the originating session.
+- [ ] `$S` resolved via the search loop; `bash "$S/resolve-skill-repo.sh"` points at a real directory before any write.
+- [ ] Session evidence was classified among blog, reusable skill, and project documentation.
+- [ ] Every skill has a capability thesis and passes all seven semantic gates.
+- [ ] Every skill has one trigger family, one operational target, and one primary observable outcome.
+- [ ] Frontmatter contains only `name` and `description`; the description carries all trigger conditions.
+- [ ] The body contains the capability boundary, operational core, and verification without empty conditional sections.
+- [ ] Scripts, references, and assets exist only when they improve deterministic reuse or progressive disclosure.
+- [ ] Every accepted skill passed validation and the repository pre-commit hook; `git push` succeeded.
+- [ ] Every successfully published skill returned a snowflake id and its `${MXS_API_URL}/api/v3/s/sk/<name>` URL resolves.
+- [ ] Blog body has **zero** mention of the skill — the skill card carries the linkage.
+- [ ] Voice, node, and visual checks in `writing-style.md` / `node-usage.md` / `visuals.md` passed.
+- [ ] Final title preserves the technical identity anchor and makes no claim broader than the evidence; slug uses stable searchable terms.
+- [ ] `no-ai-slop` detect sweep rerun after manual edits with no unresolved finding; if the loader failed, the internal hard-ban sweep still passed and the failure was reported.
+- [ ] `meta.skillIds` contains exactly the successfully pushed skills; it is absent or empty when no skill passed the gate.
+- [ ] Publish checklist in `publish-flow.md` passed; final post URL pasted back into the originating session.

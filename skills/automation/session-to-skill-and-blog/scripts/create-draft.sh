@@ -1,12 +1,13 @@
 #!/usr/bin/env bash
 # Create a native draft entity on mx-space from a LiteXML envelope, mark it
-# as AI-written (aiGen=2), optionally attach a skill snippet via
+# as AI-written (aiGen=2), optionally attach one or more skill snippets via
 # meta.skillIds, open the admin draft editor for Innei to preview, and emit
 # only { ok, id }. The draft is invisible on the site until
 # `mxs draft publish <id>` — no post exists yet.
 #
 # Requires `mxs` with the `draft` command group (@mx-space/cli >= 0.14).
-# On older mxs, fall back to `mxs post create --file <xml> --state draft`.
+# This script does not implement a fallback. If `mxs draft` is missing, follow
+# the human fallback in references/publish-flow.md.
 #
 # Usage:
 #   create-draft.sh <article.xml>

@@ -1,5 +1,16 @@
 # Node usage doctrine — when an article earns a node
 
+## Contents
+
+- [First principle](#first-principle-content-earns-nodes-nodes-never-decorate)
+- [Escalation ladder](#the-escalation-ladder)
+- [Scenario map](#scenario--node-map-engineering-session-posts)
+- [Interactive teaching](#when-interaction-teaches--the-positive-case-for-interactive-nodes)
+- [Catalog rule](#interactive-embeds-dynamic--catalog-gated)
+- [Quantity discipline](#quantity-discipline)
+- [Anti-patterns](#anti-patterns)
+- [Pre-publish audit](#pre-publish-node-audit)
+
 The haklex editor ships dozens of node types. This is a menu, not a quota.
 The doctrine below decides *whether* a piece of content earns a node at all;
 the litexml-authoring skill (loaded via `load-litexml.sh`) covers *how* to
@@ -45,7 +56,7 @@ Escalate only when the current level demonstrably fails. Never skip levels
 | The post itself is outdated / superseded / time-boxed (deprecation notice, "broken as of vX") | `<banner>` (max 1, at top) | Banner as a styled intro, a skill/source pointer, or a section divider |
 | Comparing enumerable facts, ≥ 2 rows × 2 cols of short cells | `<table>` | Table with one column, or prose stuffed into cells |
 | Two short alternatives viewed side-by-side | `<grid cols="2">` | Grid for content that reads sequentially |
-| Architecture, pipeline, decision tree, timeline | `<excalidraw>` (see the visuals table in SKILL.md) | ASCII art in a codeblock |
+| Architecture, pipeline, decision tree, timeline | `<excalidraw>` or `<mermaid>` according to complexity and routing needs in `visuals.md` | Decorative schematic; ASCII art in a codeblock |
 | Strict sequence diagram; dense auto-routed flowchart | `<mermaid>` | Excalidraw with 30 hand-placed arrows |
 | Full log / full config that supports the argument but would break the arc | `<details>` (collapsed evidence) | Hiding the main narrative inside details |
 | Reproducing a real conversation (agent transcript, support thread) | `<chat>` | Chat to dramatize content that was never a dialogue |
@@ -124,14 +135,15 @@ below are ceilings for the exceptional case, not allowances to spend.
 - **Banner**: default 0. Reserve for a page-wide status fact about the
   post itself (deprecated, superseded, time-boxed validity). Never use it
   as a styled introduction or a skill/source pointer — those are opening
-  prose (see writing-style.md "Structure").
+  decisions governed by the reader contract in `writing-style.md`.
 - **Interactive nodes** (`poll` / `chat` / `dynamic`): zero is a fine
   number; one that nails the core lesson is excellent; several per post
   almost always means gimmickry. Enter only through a scenario in "When
   interaction teaches" — never as engagement garnish.
-- **Diagram floor** (≥ 3 Excalidraw for substantial `site-owner` posts) is a
-  floor on *thinking*, not a license to pad: each diagram must answer a
-  question the prose struggled to answer.
+- **Diagrams**: default 0. Add one for each distinct spatial, temporal,
+  stateful, or quantitative question that prose cannot answer efficiently.
+  Do not satisfy a diagram count, and do not split one relationship across
+  several visuals to create variety.
 - Node variety is **not** a quality metric. The metric is information
   density. A reviewer should never be able to guess "the author wanted to
   show off the editor" from the node mix.
@@ -140,7 +152,7 @@ below are ceilings for the exceptional case, not allowances to spend.
 
 | Smell | Why it is wrong | Fix |
 | --- | --- | --- |
-| Alert wrapping an ordinary opinion | Devalues real warnings; readers learn to skip alerts | Plain prose; use an Antirez 断语 for emphasis |
+| Alert wrapping an ordinary opinion | Devalues real warnings; readers learn to skip alerts | State the claim in plain prose and support it with evidence |
 | Main argument inside `<details>` | Reader must click to follow the story | Inline it; details holds evidence, not narrative |
 | Table as layout (single column, long prose cells) | Tables encode comparisons, not paragraphs | List or prose |
 | `<nested-doc>` as a fancy section | It signals a separable sub-document, which a section is not | `<h2>`/`<h3>` |

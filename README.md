@@ -42,7 +42,7 @@ SKILL/
 | Skill | Purpose |
 | ----- | ------- |
 | [`session-handoff`](skills/automation/session-handoff/SKILL.md) | Produce a self-contained handoff prompt for another agent when delegating continued work |
-| [`session-to-skill-and-blog`](skills/automation/session-to-skill-and-blog/SKILL.md) | Productize a completed engineering session as a paired skill (in this repo) and a published blog post that links to it |
+| [`session-to-skill-and-blog`](skills/automation/session-to-skill-and-blog/SKILL.md) | Classify a completed engineering session into a narrative blog, zero or more reusable skills, and project-local documentation |
 | [`working-summary`](skills/automation/working-summary/SKILL.md) | Work summary / 周报 from GitHub PRs/commits and optional Linear trackers; markdown for notes (e.g. Obsidian) |
 
 ### Content
@@ -81,6 +81,8 @@ SKILL/
 
 | Skill | Purpose |
 | ----- | ------- |
+| [`chat-export-report`](skills/research/chat-export-report/SKILL.md) | Analyze exported chat logs (WeChat / Telegram / iMessage / QQ) into layered, drill-down reports grounded in original quotes |
+| [`codebase-value-audit`](skills/research/codebase-value-audit/SKILL.md) | Audit whether a codebase's size is justified: strict LOC accounting, product-surface inventory, per-sub-product line attribution and worth verdicts |
 
 ### Writing
 
@@ -88,6 +90,8 @@ SKILL/
 
 | Skill | Purpose |
 | ----- | ------- |
+| [`generate-design-md`](skills/writing/generate-design-md/SKILL.md) | Produce `DESIGN.md` for a brand/site from live CSS and tokens (awesome-design-md format) |
+| [`holding-analytical-judgment`](skills/writing/holding-analytical-judgment/SKILL.md) | Keep analysis grounded in evidence; do not flip conclusions for mood alone (code review, diagnosis, post-mortems) |
 
 ## Agent Integration
 
@@ -134,7 +138,3 @@ git config core.hooksPath .githooks
 ```
 
 If you must bypass it for a non-skill commit, use `git commit --no-verify`.
-| [`chat-export-report`](skills/research/chat-export-report/SKILL.md) | Analyze exported chat logs (WeChat / Telegram / iMessage / QQ) into layered, drill-down reports grounded in original quotes |
-| [`codebase-value-audit`](skills/research/codebase-value-audit/SKILL.md) | Audit whether a codebase's size is justified: strict LOC accounting, product-surface inventory, per-sub-product line attribution and worth verdicts |
-| [`generate-design-md`](skills/writing/generate-design-md/SKILL.md) | Produce `DESIGN.md` for a brand/site from live CSS and tokens (awesome-design-md format) |
-| [`holding-analytical-judgment`](skills/writing/holding-analytical-judgment/SKILL.md) | Keep analysis grounded in evidence; do not flip conclusions for mood alone (code review, diagnosis, post-mortems) |

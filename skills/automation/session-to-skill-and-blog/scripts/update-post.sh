@@ -19,7 +19,8 @@ SRC="$2"
 # published post back to draft, making it vanish for readers. Publish state
 # changes go through `mxs post publish|unpublish` only. (Newer mxs ignores
 # envelope state on update, but the installed binary may predate that guard.)
-SAFE="$(mktemp -t mxs-update).xml"
+SAFE="$(mktemp "${TMPDIR:-/tmp}/mxs-update.XXXXXX")"
+trap 'rm -f "$SAFE"' EXIT
 sed '/<state>[^<]*<\/state>/d' "$SRC" > "$SAFE"
 
 mxs post update "$SLUG" --file "$SAFE" --open --silent

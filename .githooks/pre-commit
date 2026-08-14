@@ -2,7 +2,8 @@
 # Verify SKILL repo integrity before allowing a commit.
 #
 # Rules:
-#   1. Every skills/<domain>/<name>/SKILL.md must be referenced in README.md.
+#   1. Every skills/<domain>/<name>/SKILL.md must have a row inside the
+#      matching domain table in README.md (not merely anywhere in the file).
 #   2. Every skill must have a flat symlink at .agent/skills/<name> pointing
 #      to ../../skills/<domain>/<name>.
 #   3. Every skill must have the same flat symlink at .claude/skills/<name>.
@@ -21,8 +22,8 @@ while IFS= read -r skill_md; do
   domain="$(basename "$(dirname "$skill_dir")")"
   expected_target="../../skills/$domain/$name"
 
-  if ! grep -qF "skills/$domain/$name/SKILL.md" README.md; then
-    errors+=("README.md missing entry for skills/$domain/$name/SKILL.md")
+  if ! python3 "$ROOT/.githooks/readme-domain-table.py" check README.md "$domain" "$name"; then
+    errors+=("README.md missing row for skills/$domain/$name/SKILL.md inside its domain table")
   fi
 
   for link in ".agent/skills/$name" ".claude/skills/$name"; do
