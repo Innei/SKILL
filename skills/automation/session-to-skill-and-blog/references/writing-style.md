@@ -183,8 +183,9 @@ the new lookup and the old public-path redirect.
 
 ## Choose the narrator
 
-Choose one grammatical narrator after choosing the spine. Do not change what
-"I" refers to inside the post.
+If the session intake already recorded `agent`, `site-owner`, or `neutral`,
+use that narrator. Otherwise choose one grammatical narrator after choosing
+the spine. Do not change what "I" refers to inside the post.
 
 | Narrator | Use when | Attribution rule |
 | -------- | -------- | ---------------- |

@@ -20,10 +20,11 @@ Do not force a one-to-one pair. One blog may attach no skill, one skill, or
 several skills; one skill may support several later blogs. The outputs share
 evidence, not structure.
 
-**Classify first. For every accepted skill candidate, author and push the
-skill before writing the blog.** This preserves the operational contract
-before narrative compression. If no candidate passes the skill gate, write
-the blog without inventing a skill.
+**Confirm authoring choices, then classify.** For every accepted skill
+candidate, author and push the skill before writing the blog. This
+preserves the operational contract before narrative compression. If intake
+said no skill, or no candidate passes the skill gate, write the blog
+without inventing a skill.
 
 ## References
 
@@ -95,8 +96,10 @@ REPO="$(bash "$S/resolve-skill-repo.sh")"
 ## Workflow
 
 ```text
+[0] Confirm persona and skill pairing (interactive tool if available)
 [1] Inventory and classify session evidence
 [2] State and evaluate each capability thesis
+       intake = none ──> skip to [5]
        rejected ──> blog or project documentation
        accepted ──> one coherent skill
 [3] Scaffold, author, validate, commit, and push accepted skills
@@ -104,6 +107,44 @@ REPO="$(bash "$S/resolve-skill-repo.sh")"
 [5] Write the blog from the narrative evidence
 [6] Publish via mxs with zero or more --skill-id arguments
 ```
+
+### [0] Confirm authoring choices
+
+Do this before [1]. If the triggering message already answered both
+questions, record those answers and continue. Otherwise ask, then wait.
+
+If the runtime has an interactive question tool (`AskUserQuestion`,
+`ask_user_question`, or equivalent), ask both questions in one call.
+If no such tool exists, ask the same two questions in chat. Do not start
+[1] until both answers are recorded.
+
+Ask in Chinese. Map the answers as follows; do not invent extra questions.
+
+1. 你想用哪种写作人格去编写这篇文章？
+
+   | Option | Record as | Meaning |
+   | ------ | --------- | ------- |
+   | Agent 第一人称 | `agent` | 「我」是 agent |
+   | 站长第一人称 | `site-owner` | 「我」是 Innei |
+   | 中性叙述 | `neutral` | 不用「我」 |
+   | 看材料再定 | `defer` | Choose after the spine |
+
+   Narrator attribution lives in
+   [`writing-style.md`](./references/writing-style.md). A custom "Other"
+   answer maps to the closest of these four, or follows the user's wording
+   when it already names a narrator.
+
+2. 这篇文章需要搭配一个 skill 吗？
+
+   | Option | Record as | Effect |
+   | ------ | --------- | ------ |
+   | 需要 | `required` | Run [2]–[4]; a failing gate still yields a blog without a skill |
+   | 不需要 | `none` | Skip [2]–[4]; write the blog only |
+   | 看材料再定 | `defer` | Existing semantic gate decides |
+
+A recorded `agent` / `site-owner` / `neutral` overrides the spine default
+in `writing-style.md`. `none` skips skill work even if a candidate would
+pass.
 
 ### [1] Inventory and classify
 
@@ -121,6 +162,8 @@ Treat code or configuration length only as a resource-planning signal. It is
 not evidence that a skill should exist.
 
 ### [2] State and evaluate the capability thesis
+
+If intake recorded `none`, skip this step and [3]–[4].
 
 Write this sentence before scaffolding a candidate:
 
@@ -232,6 +275,9 @@ Load [`writing-style.md`](./references/writing-style.md),
 [`visuals.md`](./references/visuals.md) before drafting. Do not restate
 those rules here.
 
+Use the recorded narrator. If intake recorded `defer`, choose after the
+spine per `writing-style.md`.
+
 After choosing the reader contract and article spine, derive a working title
 and stable slug. Finalize the title after the draft proves its central claim;
 do not allow a sharper generalization to erase the defining technology or
@@ -276,6 +322,9 @@ Publish, voice, and node rules live in those files.
 
 | Mistake | Fix |
 | ------- | --- |
+| Skipping intake when the trigger did not already answer | Ask both questions before [1]; use the interactive tool when it exists. |
+| Choosing narrator after a recorded intake persona | Use the recorded narrator. |
+| Authoring a skill after intake `none` | Skip [2]–[4]. |
 | Forcing every blog to have exactly one skill | Apply the semantic gate; allow zero, one, or several skills. |
 | Deriving the skill scope from the blog title | Define a future trigger, action, boundary, and observable outcome. |
 | Creating a skill because the session contains long code | Require repeatability and a non-obvious knowledge delta first. |
@@ -300,6 +349,9 @@ Publish, voice, and node rules live in those files.
 ## Verification
 
 - [ ] `$S` resolved via the search loop; `bash "$S/resolve-skill-repo.sh"` points at a real directory before any write.
+- [ ] Intake answers recorded (or already present in the trigger) before [1].
+- [ ] Draft narrator matches the recorded persona, or the deferred spine rule.
+- [ ] Skill work skipped when intake said `none`; gates still applied when `required` or `defer`.
 - [ ] Session evidence was classified among blog, reusable skill, and project documentation.
 - [ ] Every skill has a capability thesis and passes all seven semantic gates.
 - [ ] Every skill has one trigger family, one operational target, and one primary observable outcome.
