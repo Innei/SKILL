@@ -55,6 +55,7 @@ SKILL/
 | [`chibi-sticker-sheet`](skills/content/chibi-sticker-sheet/SKILL.md) | Generate a 4×8 chibi sticker sheet from a character reference via Gemini, with alpha keying and 1:1 cell slicing |
 | [`gemini-image-generation`](skills/content/gemini-image-generation/SKILL.md) | Gemini text-to-image and image-to-image — style transfer, character consistency, watermark removal |
 | [`gemini-seo-image-assets`](skills/content/gemini-seo-image-assets/SKILL.md) | Generate favicon/OG artwork via Gemini, export icon variants, and wire SEO metadata |
+| [`product-visuals`](skills/content/product-visuals/SKILL.md) | Compose product marketing visuals from real macOS/iOS screenshots in official device bezels |
 
 ### Infrastructure
 
