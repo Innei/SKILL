@@ -1,0 +1,131 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <style>
+      html,
+      body {
+        margin: 0;
+        width: 1290px;
+        height: 2796px;
+        overflow: hidden;
+        background: var(--bg, #141312);
+        color: var(--fg, #f4f1ea);
+        font-family: "PingFang SC", "Hiragino Sans GB", "Hiragino Sans",
+          sans-serif;
+        -webkit-font-smoothing: antialiased;
+      }
+      .slide {
+        position: relative;
+        width: 1290px;
+        height: 2796px;
+        background:
+          radial-gradient(
+            80% 38% at 50% 16%,
+            color-mix(in srgb, var(--accent, #c56473) 18%, transparent),
+            transparent 64%
+          ),
+          linear-gradient(180deg, var(--bg-top, #1b1916) 0%, var(--bg, #141312) 100%);
+      }
+      .copy {
+        position: absolute;
+        left: 100px;
+        right: 100px;
+        top: 148px;
+        text-align: center;
+      }
+      .kicker {
+        font-size: 26px;
+        letter-spacing: 0.38em;
+        color: var(--accent, #c56473);
+        font-weight: 500;
+        margin-bottom: 36px;
+      }
+      h1 {
+        margin: 0;
+        font-family: "Songti SC", "Hiragino Mincho ProN", "Iowan Old Style",
+          serif;
+        font-weight: 700;
+        font-size: 92px;
+        line-height: 1.2;
+        letter-spacing: 0.02em;
+      }
+      h1.latin {
+        font-size: 84px;
+        letter-spacing: -0.02em;
+        font-family: "Iowan Old Style", "Palatino", "Songti SC", serif;
+      }
+      .sub {
+        margin-top: 32px;
+        font-size: 30px;
+        line-height: 1.55;
+        color: color-mix(in srgb, var(--fg, #f4f1ea) 58%, transparent);
+        letter-spacing: 0.04em;
+      }
+      .phone {
+        position: absolute;
+        left: 50%;
+        top: 720px;
+        width: 980px;
+        height: 2003px;
+        transform: translateX(-50%);
+        filter: drop-shadow(0 40px 70px rgba(0, 0, 0, 0.55));
+      }
+      .screen {
+        position: absolute;
+        z-index: 1;
+      }
+      .bezel {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        z-index: 2;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="slide">
+      <div class="copy">
+        <div class="kicker" id="kicker"></div>
+        <h1 id="title"></h1>
+        <p class="sub" id="sub"></p>
+      </div>
+      <div class="phone">
+        <img class="screen" id="shot" alt="" />
+        <img class="bezel" id="bezel" alt="" />
+      </div>
+    </div>
+    <script>
+      const q = new URLSearchParams(location.search)
+      const root = document.documentElement
+      for (const key of ["bg", "bg-top", "fg", "accent"]) {
+        const v = q.get(key)
+        if (v) root.style.setProperty(`--${key}`, v)
+      }
+      document.getElementById("kicker").textContent = q.get("kicker") || ""
+      const title = document.getElementById("title")
+      title.innerHTML = (q.get("title") || "").replace(/\n/g, "<br>")
+      if (q.get("latin") === "1") title.classList.add("latin")
+      document.getElementById("sub").innerHTML = (q.get("sub") || "").replace(
+        /\n/g,
+        "<br>",
+      )
+      const hole = {
+        x: Number(q.get("hx") || 72),
+        y: Number(q.get("hy") || 69),
+        w: Number(q.get("hw") || 1206),
+        h: Number(q.get("hh") || 2622),
+        bw: Number(q.get("bw") || 1350),
+        bh: Number(q.get("bh") || 2760),
+      }
+      const screen = document.getElementById("shot")
+      screen.src = q.get("img") || ""
+      screen.style.left = `${(hole.x / hole.bw) * 100}%`
+      screen.style.top = `${(hole.y / hole.bh) * 100}%`
+      screen.style.width = `${(hole.w / hole.bw) * 100}%`
+      screen.style.height = `${(hole.h / hole.bh) * 100}%`
+      document.getElementById("bezel").src = q.get("bezel") || ""
+    </script>
+  </body>
+</html>

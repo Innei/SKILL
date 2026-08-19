@@ -1,0 +1,25 @@
+{
+  "outDir": "tmp-asc/out",
+  "bezel": "/Users/you/.cache/app-store-listing/iphone17-black.png",
+  "kicker": "余白",
+  "bg": "#141312",
+  "bg-top": "#1b1916",
+  "fg": "#f4f1ea",
+  "accent": "#c56473",
+  "slides": [
+    {
+      "id": "zh/01-list",
+      "title": "自己的站点\n装进口袋",
+      "sub": "文章、手记、思考。\n给自己的站点用的阅读器。",
+      "capture": "tmp-asc/captures/zh/01-list.png"
+    },
+    {
+      "id": "en/01-list",
+      "latin": true,
+      "kicker": "YOHAKU",
+      "title": "Your site,\nin your pocket",
+      "sub": "Posts, notes, thoughts.\nA reader for your own site.",
+      "capture": "tmp-asc/captures/en/01-list.png"
+    }
+  ]
+}
