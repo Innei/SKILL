@@ -3,8 +3,9 @@ name: product-visuals
 description: >
   Use when the user wants a product marketing image from real macOS or iOS
   screenshots — dual-device hero, device-framed mockup, 宣传图, 产品图, 机型边框,
-  App Store screenshots, OG card, changelog card, or to swap the background of
-  an existing device mockup. Also when they run /product-visuals.
+  privacy-safe Safari or web presentation, App Store screenshots, OG card,
+  changelog card, or to swap the background of an existing device mockup. Also
+  when they run /product-visuals.
 ---
 
 # Product Visuals
@@ -14,16 +15,18 @@ Compose product marketing stills from **real app screenshots** inside official A
 ## Capability contract
 
 - **Outcome:** a 16:9 (or requested) PNG with iPhone / MacBook frames and pixel-accurate UI
-- **Preconditions:** iPhone screenshot and/or macOS window screenshot; network once to fetch Apple bezels
+- **Preconditions:** iPhone screenshot and/or real app/browser window screenshot; network access to fetch Apple resources and public wallpaper when needed
 - **Boundaries:** do not invent or redraw UI; do not implement `app-store-set` / `og-card` / `changelog-card` in this version (route only)
 
 ## Iron rules
 
 1. Never send product screenshots through an image model. Frames and composite are local code.
-2. Never commit or vendor Apple Design Resource PNGs/DMGs. Fetch to `~/.cache/product-visuals/bezels/`.
+2. Never commit or vendor Apple Design Resource PNGs/DMGs. Fetch them under `~/.cache/product-visuals/`.
 3. Clip the screenshot to the **interior screen mask**, not the hole's bounding box (bbox corners sit outside the rounded device).
 4. Zero RGB on fully transparent bezel pixels and premultiply before LANCZOS resize.
 5. Shadows are padded contact shadows under the chassis. Do not blur the full bezel canvas — that stamps a rectangular plate.
+6. Never use the user's live desktop, personal wallpaper, notifications, bookmarks, or unrelated windows unless they explicitly request it.
+7. For a web product on Mac, capture the real site in Safari. Do not redraw Safari chrome or simulate it with generic rounded rectangles.
 
 ## Recipes
 
@@ -40,11 +43,12 @@ Default composition for `dual-device-hero`: 4800×2700, MacBook Pro 14 Space Bla
 
 ```text
 [1] Pick recipe from the request (default dual-device-hero)
-[2] Collect --phone and --mac paths (uploads, Desktop simulator PNG, or window capture)
-[3] bash scripts/fetch-bezels.sh
-[4] Choose background (see below)
-[5] uv run scripts/compose.py dual-device-hero --phone … --mac … --out …
-[6] Open the PNG. Confirm UI is readable, no corner overflow, no rectangular plates around devices
+[2] Collect --phone and --mac paths (uploads, Simulator PNG, or real window capture)
+[3] If --mac is a web product, build the privacy-safe macOS desktop scene described below
+[4] bash scripts/fetch-bezels.sh
+[5] Choose background (see below)
+[6] uv run scripts/compose.py dual-device-hero --phone … --mac … --out …
+[7] Open the PNG. Confirm UI is readable, no corner overflow, no rectangular plates around devices
 ```
 
 ```bash
@@ -79,16 +83,20 @@ Generated atmospheres must stay empty. If a model draws a laptop or phone, disca
 
 `--bg-dim 0.88` darkens a too-bright plate. Default is `1.0` (unchanged).
 
+## macOS web presentation
+
+When the Mac screen presents a website, read [references/macos-web-scene.md](references/macos-web-scene.md) before composing it. The `--mac` input must be the resulting privacy-safe desktop scene: public macOS wallpaper, official Menu Bar components, and a large centered real Safari window.
+
 ## Inputs
 
 | Flag | Meaning |
 | --- | --- |
 | `--phone` | iPhone screenshot (prefer native simulator PNG, e.g. 1206×2622 for 17 Pro) |
-| `--mac` | macOS window or desktop capture; the full desktop+window shot is OK and looks like a real Mac |
+| `--mac` | privacy-safe macOS scene or real app window; never default to the user's personal desktop capture |
 | `--bg` | optional background image, any aspect; resized to the canvas |
 | `--out` | destination PNG |
 
-If the Mac capture includes wallpaper around a window, use it as-is. Do not crop unless the user wants the app to fill the display.
+If a user-supplied Mac capture includes wallpaper, inspect it for private content before using it. Prefer rebuilding a clean desktop scene for public README or marketing output.
 
 ## Verification
 
@@ -97,6 +105,8 @@ Before claiming done:
 - Open the PNG. Read actual UI text on both screens — it must match the source screenshots.
 - Check iPhone top-left and both bottom corners: no screenshot rectangle leaking past the silver frame.
 - Check around both devices: no darker rectangular plate, no second shadow card on the Mac.
+- For a web product, confirm the browser is genuine Safari, fills roughly 84–90% of the desktop width, and contains no private browser or desktop data.
+- Confirm the Menu Bar uses official component geometry and the requested light/dark template color; default to white glyphs and text for product visuals.
 - If only the background should change, the framed screens must be identical to the previous export.
 
 ## Common mistakes
@@ -108,3 +118,6 @@ Before claiming done:
 | Gaussian-blur the full bezel image for a drop shadow | Padded contact shadow under the base |
 | Resize RGBA without premultiply | Dirty transparent RGB becomes a gray halo |
 | Check Apple bezels into git | Cache only; `fetch-bezels.sh` |
+| Use the current Mac desktop as convenient filler | Replace it with a public macOS wallpaper and a clean desktop scene |
+| Hand-draw Safari or make it too small | Capture real Safari and center it at about 88% desktop width |
+| Recreate the Menu Bar from memory | Start from Apple's macOS UI Kit component and tint its template pixels |
