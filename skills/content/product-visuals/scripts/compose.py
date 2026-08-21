@@ -83,56 +83,6 @@ def cover(src: Image.Image, box: tuple[int, int, int, int], top: bool = False) -
     return img.crop((left, top_off, left + tw, top_off + th))
 
 
-def expand_baked_display_corners(shot: Image.Image, max_r: int = 44) -> Image.Image:
-    rgb = np.asarray(shot.convert("RGB")).copy()
-    orig = rgb.copy()
-    orig_lum = orig.mean(axis=2)
-    h, w = rgb.shape[:2]
-    if w < h or w < 200:
-        return Image.fromarray(rgb)
-    if float(orig_lum[8, w // 5]) < 40:
-        return Image.fromarray(rgb)
-
-    def black_r(row: int, from_end: bool) -> int:
-        line = orig_lum[row]
-        if from_end:
-            line = line[::-1]
-        r = 0
-        while r < 36 and line[r] < 30:
-            r += 1
-        return r
-
-    def fill_corner(y0: int, x0: int, dy: int, dx: int, br: int, bg) -> None:
-        r = min(max_r, br + 16)
-        for i in range(r):
-            y = y0 + i * dy
-            if y < 0 or y >= h:
-                break
-            for j in range(r):
-                x = x0 + j * dx
-                if not (0 <= x < w):
-                    continue
-                if orig_lum[y, x] > 170 and j > br + 10:
-                    continue
-                rgb[y, x] = bg
-
-    patch = orig[6:18, 80:150]
-    if patch.size == 0:
-        return Image.fromarray(rgb)
-    bg = np.median(patch.reshape(-1, 3), axis=0).astype(np.uint8)
-    fill_corner(0, 0, 1, 1, black_r(0, False), bg)
-    fill_corner(0, w - 1, 1, -1, black_r(0, True), bg)
-    bpatch = orig[h - 90 : h - 50, 50:140]
-    bbg = (
-        np.median(bpatch.reshape(-1, 3), axis=0).astype(np.uint8)
-        if bpatch.size
-        else bg
-    )
-    fill_corner(h - 1, 0, -1, 1, black_r(h - 1, False), bbg)
-    fill_corner(h - 1, w - 1, -1, -1, black_r(h - 1, True), bbg)
-    return Image.fromarray(rgb)
-
-
 def hide_framebuffer_island(shot: Image.Image) -> Image.Image:
     rgb = np.asarray(shot.convert("RGB")).copy()
     h, w = rgb.shape[:2]
@@ -166,7 +116,7 @@ def hide_framebuffer_island(shot: Image.Image) -> Image.Image:
 
 def frame_device(bezel_path: Path, shot_path: Path, top: bool = False) -> Image.Image:
     bezel = clean_rgba(Image.open(bezel_path))
-    shot = expand_baked_display_corners(hide_framebuffer_island(Image.open(shot_path)))
+    shot = hide_framebuffer_island(Image.open(shot_path))
     hole = interior_mask(bezel)
     ys, xs = np.where(hole)
     if len(xs) == 0:

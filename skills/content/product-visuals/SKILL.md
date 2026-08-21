@@ -132,7 +132,6 @@ Before claiming done:
 - Check the pair as a group: left/right gaps around the **opaque chassis** should match. A left-heavy Mac with empty canvas on the right means the layout used PNG origin instead of the opaque union.
 - Background shares the product's palette and material. A blue cinematic void behind a parchment/ink app is wrong.
 - For a web product, confirm the browser is genuine Safari, fills roughly 84–90% of the desktop width, and contains no private browser or desktop data.
-- Check the MacBook display's top-left: the Menu Bar must follow the hardware round. A second, smaller rounded-rect (often with a light fringe) means the `--mac` shot was cropped from a previous mockup.
 - Confirm the Menu Bar uses official component geometry and the requested light/dark template color; default to white glyphs and text for product visuals.
 - If only the background should change, the framed screens must be identical to the previous export.
 
@@ -151,5 +150,4 @@ Before claiming done:
 | Hand-draw Safari, paste a site shot into another window's chrome, or strip the window shadow with `screencapture -o` | Resize the live Safari window, `screencapture -l` (keep shadow), composite that PNG with its alpha |
 | Recreate the Menu Bar from memory | Start from Apple's macOS UI Kit component and tint its template pixels |
 | Screenshot of Simulator.app, or a crop from a framed mockup | `xcrun simctl io <udid> screenshot` at native size |
-| Mac screen extract with baked display rounds (inner rounded-rect + gold fringe inside the bezel) | Use a full-rectangle desktop. `compose.py` extends menubar/wallpaper into those corner pies so the bezel is the only round |
 | Two Dynamic Islands / camera floating next to a black pill | Recapture with simctl; do not feed an already-framed PNG as `--phone` |
