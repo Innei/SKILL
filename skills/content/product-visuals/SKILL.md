@@ -26,7 +26,7 @@ Compose product marketing stills from **real app screenshots** inside official A
 4. Zero RGB on fully transparent bezel pixels and premultiply before LANCZOS resize.
 5. Shadows are padded contact shadows under the chassis. Do not blur the full bezel canvas — that stamps a rectangular plate.
 6. Never use the user's live desktop, personal wallpaper, notifications, bookmarks, or unrelated windows unless they explicitly request it.
-7. For a web product on Mac, screenshot a real local Safari **window** (`screencapture -l <CGWindowID>`). Do not paste a webpage screenshot into someone else's Safari chrome. Do not redraw Safari.
+7. For a web product on Mac, screenshot a real local Safari **window** with its native shadow (`screencapture -l <CGWindowID>`). `--mac` accepts that window only; the compositor supplies the wallpaper and Menu Bar and never adds a second window shadow. Do not paste a webpage screenshot into someone else's Safari chrome. Do not redraw Safari.
 8. For iPhone, capture the simulator **framebuffer** with `xcrun simctl io <udid> screenshot`. Never screenshot the Simulator.app window. Never crop a screen out of an already-framed mockup.
 
 ## Recipes
@@ -44,17 +44,19 @@ Default composition for `dual-device-hero`: 4800×2700, opaque device group cent
 
 ```text
 [1] Pick recipe from the request (default dual-device-hero)
-[2] Collect --phone (simctl framebuffer PNG) and --mac (upload or real Mac window / privacy-safe desktop scene)
-[3] If --mac is a web product, build the privacy-safe macOS desktop scene described below
-[4] bash scripts/fetch-bezels.sh
-[5] Derive background from the app's 调性 (see Background)
-[6] uv run scripts/compose.py dual-device-hero --phone … --mac … --bg … --out …
-[7] Open the PNG. Confirm UI is readable, no corner overflow, no rectangular plates around devices, background reads as the same product
+[2] Collect --phone (simctl framebuffer PNG) and --mac (real Mac window PNG with native shadow)
+[3] Export the official Menu Bar SVG from Apple's macOS UI Kit and cache it with scripts/cache-macos-menu-bar.sh
+[4] Let compose.py build the Mac screen as wallpaper -> official Menu Bar -> --mac window
+[5] bash scripts/fetch-bezels.sh
+[6] Derive background from the app's 调性 (see Background)
+[7] uv run scripts/compose.py dual-device-hero --phone … --mac … --bg … --out …
+[8] Open the PNG. Confirm UI is readable, no corner overflow, no rectangular plates around devices, background reads as the same product
 ```
 
 ```bash
 HERE="<path-to-this-skill>"
 bash "$HERE/scripts/fetch-bezels.sh"
+bash "$HERE/scripts/cache-macos-menu-bar.sh" "$MENU_BAR_SVG"
 uv run "$HERE/scripts/compose.py" dual-device-hero \
   --phone "$PHONE" --mac "$MAC" --bg "$BG" --out "$OUT"
 ```
@@ -88,7 +90,7 @@ Generated atmospheres must stay empty. If a model draws a laptop or phone, disca
 
 ## macOS web presentation
 
-When the Mac screen presents a website, read [references/macos-web-scene.md](references/macos-web-scene.md) before composing it. The `--mac` input must be the resulting privacy-safe desktop scene: public macOS wallpaper, official Menu Bar components, and a large centered real Safari window.
+When the Mac screen presents a website, read [references/macos-web-scene.md](references/macos-web-scene.md) before composing it. The `--mac` input is only the real Safari window capture. The compositor builds the privacy-safe desktop scene from separate wallpaper, Menu Bar, and window layers.
 
 ## iPhone capture
 
@@ -114,11 +116,13 @@ The workflow's "real window capture" is **Mac only**.
 | Flag | Meaning |
 | --- | --- |
 | `--phone` | Simulator framebuffer PNG from `simctl io screenshot` (iPhone 17 Pro: 1206×2622) |
-| `--mac` | privacy-safe macOS scene or real app window; never default to the user's personal desktop capture |
+| `--mac` | real app/Safari window PNG with native window shadow; never a full desktop capture |
+| `--mac-wallpaper` | optional public wallpaper override; otherwise use the built-in privacy-safe wallpaper layer |
+| `--mac-menu-bar` | optional transparent official Menu Bar PNG override; otherwise use the cached macOS 27 UI Kit layer |
 | `--bg` | optional background image, any aspect; resized to the canvas |
 | `--out` | destination PNG |
 
-If a user-supplied Mac capture includes wallpaper, inspect it for private content before using it. Prefer rebuilding a clean desktop scene for public README or marketing output.
+Reject a `--mac` capture that includes wallpaper, a desktop corner, the display notch, Dock, notifications, or unrelated windows. Recapture only the target window.
 
 ## Verification
 
@@ -129,10 +133,12 @@ Before claiming done:
 - Check iPhone top-left and both bottom corners: no screenshot rectangle leaking past the silver frame.
 - Check the Dynamic Island: one hardware island with the camera. A second black pill beside or below it means `--phone` was not a framebuffer shot, or the island was not covered by the bezel.
 - Check around both devices: no darker rectangular plate, no second shadow card on the Mac.
+- Check the MacBook display corner against the official bezel: the screen content reaches the official interior mask and has no second inset rounded corner from a desktop screenshot.
 - Check the pair as a group: left/right gaps around the **opaque chassis** should match. A left-heavy Mac with empty canvas on the right means the layout used PNG origin instead of the opaque union.
 - Background shares the product's palette and material. A blue cinematic void behind a parchment/ink app is wrong.
 - For a web product, confirm the browser is genuine Safari, fills roughly 84–90% of the desktop width, and contains no private browser or desktop data.
-- Confirm the Menu Bar uses official component geometry and the requested light/dark template color; default to white glyphs and text for product visuals.
+- Confirm Safari has one native rounded border and one native soft shadow. A second hard or concentric arc means the compositor added or reconstructed a shadow; it must not do so.
+- Confirm the Menu Bar is the unmodified official UI Kit export: Apple glyph, outlined typography, status icons, spacing, and date/time must remain coherent.
 - If only the background should change, the framed screens must be identical to the previous export.
 
 ## Common mistakes
@@ -146,8 +152,10 @@ Before claiming done:
 | Check Apple bezels into git | Cache only; `fetch-bezels.sh` |
 | Pin Mac at `(150,150)` / center the bezel PNG canvas | Center the opaque-union; 14" Mac mockups have ~230px empty top pad |
 | Default to cinematic blue-rose studio | Read the screens (and DESIGN.md). Generate or sample from the app |
-| Use the current Mac desktop as convenient filler | Replace it with a public macOS wallpaper and a clean desktop scene |
-| Hand-draw Safari, paste a site shot into another window's chrome, or strip the window shadow with `screencapture -o` | Resize the live Safari window, `screencapture -l` (keep shadow), composite that PNG with its alpha |
-| Recreate the Menu Bar from memory | Start from Apple's macOS UI Kit component and tint its template pixels |
+| Pass a full desktop screenshot as `--mac` | Pass only the target window; let the compositor own wallpaper and Menu Bar layers |
+| Hand-draw Safari or paste a site shot into another window's chrome | Resize the live Safari window, capture that real window, and composite its PNG with alpha |
+| Add a drop shadow around the Safari PNG | Keep the native `screencapture -l` shadow; the compositor adds no window shadow |
+| Repair rounded corners from a desktop screenshot | Remove that code path; a wallpaper-first rectangular scene has no baked display corners |
+| Recreate the Menu Bar with local fonts or hand-drawn icons | Export the official component from Apple's macOS UI Kit and cache it with `cache-macos-menu-bar.sh` |
 | Screenshot of Simulator.app, or a crop from a framed mockup | `xcrun simctl io <udid> screenshot` at native size |
 | Two Dynamic Islands / camera floating next to a black pill | Recapture with simctl; do not feed an already-framed PNG as `--phone` |

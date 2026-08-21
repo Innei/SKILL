@@ -11,6 +11,7 @@ import tempfile
 from compose import (
     CANVAS,
     dual_hero_positions,
+    compose_mac_desktop,
     load_bg,
     opaque_bbox,
     scale_to_height,
@@ -103,6 +104,30 @@ class RealBezelLayoutTests(unittest.TestCase):
         left, top, right, bottom = union
         self.assertLessEqual(abs(left - (CANVAS[0] - right)), 1)
         self.assertLessEqual(abs(top - (CANVAS[1] - bottom)), 1)
+
+
+class MacDesktopCompositionTests(unittest.TestCase):
+    def test_wallpaper_owns_all_four_display_corners(self) -> None:
+        wallpaper = Image.new("RGB", (600, 400), (126, 95, 69))
+        menu = Image.new("RGBA", (600, 40), (0, 0, 0, 0))
+        window = Image.new("RGBA", (300, 220), (0, 0, 0, 0))
+        window.paste(Image.new("RGBA", (260, 180), (28, 28, 30, 255)), (20, 20))
+
+        out = compose_mac_desktop(window, (600, 400), wallpaper, menu)
+
+        for point in ((0, 0), (599, 0), (0, 399), (599, 399)):
+            self.assertEqual(out.getpixel(point), (126, 95, 69))
+
+    def test_compositor_does_not_create_window_shadow(self) -> None:
+        wallpaper = Image.new("RGB", (600, 400), (126, 95, 69))
+        menu = Image.new("RGBA", (600, 40), (0, 0, 0, 0))
+        window = Image.new("RGBA", (300, 220), (0, 0, 0, 0))
+        window.paste(Image.new("RGBA", (260, 180), (28, 28, 30, 255)), (20, 20))
+
+        out = compose_mac_desktop(window, (600, 400), wallpaper, menu)
+
+        self.assertEqual(out.getpixel((10, 200)), (126, 95, 69))
+        self.assertEqual(out.getpixel((590, 200)), (126, 95, 69))
 
 
 class ShotPaletteTests(unittest.TestCase):

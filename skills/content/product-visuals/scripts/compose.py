@@ -13,6 +13,8 @@ from PIL import Image, ImageEnhance, ImageFilter
 
 CANVAS = (4800, 2700)
 CACHE = Path.home() / ".cache" / "product-visuals" / "bezels"
+MACOS_UI_CACHE = Path.home() / ".cache" / "product-visuals" / "macos-ui"
+DEFAULT_MAC_MENU_BAR = MACOS_UI_CACHE / "macos-27-menu-bar.png"
 PHONE_X_IN_MAC = 0.88
 PHONE_Y_IN_MAC = 0.24
 IPHONE_BEZELS = {
@@ -114,15 +116,22 @@ def hide_framebuffer_island(shot: Image.Image) -> Image.Image:
     return Image.fromarray(rgb)
 
 
-def frame_device(bezel_path: Path, shot_path: Path, top: bool = False) -> Image.Image:
-    bezel = clean_rgba(Image.open(bezel_path))
-    shot = hide_framebuffer_island(Image.open(shot_path))
+def screen_bbox(bezel: Image.Image) -> tuple[int, int, int, int]:
     hole = interior_mask(bezel)
     ys, xs = np.where(hole)
     if len(xs) == 0:
-        raise SystemExit(f"no screen hole in {bezel_path}")
+        raise SystemExit("device bezel has no screen hole")
     x0, y0 = int(xs.min()), int(ys.min())
     x1, y1 = int(xs.max()) + 1, int(ys.max()) + 1
+    return x0, y0, x1, y1
+
+
+def frame_device_image(
+    bezel: Image.Image, shot: Image.Image, top: bool = False
+) -> Image.Image:
+    bezel = clean_rgba(bezel)
+    x0, y0, x1, y1 = screen_bbox(bezel)
+    hole = interior_mask(bezel)
     screen = cover(shot, (x0, y0, x1, y1), top=top)
     clip = hole[y0:y1, x0:x1]
     screen_rgba = np.dstack(
@@ -132,6 +141,12 @@ def frame_device(bezel_path: Path, shot_path: Path, top: bool = False) -> Image.
     layer = Image.fromarray(screen_rgba)
     base.paste(layer, (x0, y0), layer)
     return Image.alpha_composite(base, bezel)
+
+
+def frame_device(bezel_path: Path, shot_path: Path, top: bool = False) -> Image.Image:
+    bezel = Image.open(bezel_path)
+    shot = hide_framebuffer_island(Image.open(shot_path))
+    return frame_device_image(bezel, shot, top=top)
 
 
 def contact_shadow(
@@ -250,6 +265,61 @@ def tone_bg(size: tuple[int, int], base: Rgb, lift: Rgb, accent: Rgb) -> Image.I
     return Image.fromarray(np.clip(canvas, 0, 255).astype(np.uint8)).convert("RGBA")
 
 
+def default_mac_wallpaper(size: tuple[int, int]) -> Image.Image:
+    """Return a quiet, privacy-safe wallpaper when no public wallpaper is supplied."""
+    return tone_bg(
+        size,
+        (82.0, 62.0, 49.0),
+        (218.0, 196.0, 170.0),
+        (188.0, 143.0, 91.0),
+    )
+
+
+def load_default_macos_menu_bar() -> Image.Image:
+    """Load the official macOS UI Kit Menu Bar exported into the local cache."""
+    if not DEFAULT_MAC_MENU_BAR.is_file():
+        raise SystemExit(
+            "missing official macOS Menu Bar; export Menu Bar.svg from Apple's "
+            "macOS UI Kit, then run scripts/cache-macos-menu-bar.sh <MenuBar.svg>"
+        )
+    with Image.open(DEFAULT_MAC_MENU_BAR) as image:
+        return clean_rgba(image)
+
+
+def compose_mac_desktop(
+    window: Image.Image,
+    size: tuple[int, int],
+    wallpaper: Image.Image | None = None,
+    menu_bar: Image.Image | None = None,
+) -> Image.Image:
+    """Build wallpaper -> menu bar -> real window; never add a window shadow."""
+    w, h = size
+    if wallpaper is None:
+        scene = default_mac_wallpaper(size)
+    else:
+        scene = cover(wallpaper, (0, 0, w, h), top=False).convert("RGBA")
+
+    bar = load_default_macos_menu_bar() if menu_bar is None else clean_rgba(menu_bar)
+    if bar.width != w:
+        bar = resize_rgba(bar, (w, max(1, round(bar.height * w / bar.width))))
+    scene.alpha_composite(bar, (0, 0))
+
+    window = clean_rgba(window)
+    x0, y0, x1, _y1 = opaque_bbox(window, threshold=1)
+    visible_w = max(1, x1 - x0)
+    target_w = round(w * 0.88)
+    scale = target_w / visible_w
+    resized = resize_rgba(
+        window,
+        (max(1, round(window.width * scale)), max(1, round(window.height * scale))),
+    )
+    visible_top = round(y0 * scale)
+    window_x = (w - target_w) // 2 - round(x0 * scale)
+    window_y = max(bar.height + round(20 * w / 3024), round(h * 0.07)) - visible_top
+    scene.alpha_composite(resized, (window_x, window_y))
+    return scene.convert("RGB")
+
+
 def load_bg(
     path: Path | None,
     size: tuple[int, int],
@@ -306,8 +376,16 @@ def dual_device_hero(args: argparse.Namespace) -> None:
     canvas = load_bg(
         args.bg, (w, h), args.bg_dim, shots=[args.phone, args.mac]
     )
+    mac_bezel = clean_rgba(Image.open(args.mac_bezel))
+    mx0, my0, mx1, my1 = screen_bbox(mac_bezel)
+    mac_scene = compose_mac_desktop(
+        Image.open(args.mac),
+        (mx1 - mx0, my1 - my0),
+        wallpaper=Image.open(args.mac_wallpaper) if args.mac_wallpaper else None,
+        menu_bar=Image.open(args.mac_menu_bar) if args.mac_menu_bar else None,
+    )
     mac = scale_to_width(
-        frame_device(args.mac_bezel, args.mac, top=True), int(3360 * sx)
+        frame_device_image(mac_bezel, mac_scene, top=True), int(3360 * sx)
     )
     phone = scale_to_height(
         frame_device(args.iphone_bezel, args.phone, top=True), int(1720 * sy)
@@ -331,6 +409,8 @@ def build_parser() -> argparse.ArgumentParser:
     hero = sub.add_parser("dual-device-hero")
     hero.add_argument("--phone", type=Path, required=True)
     hero.add_argument("--mac", type=Path, required=True)
+    hero.add_argument("--mac-wallpaper", type=Path, default=None)
+    hero.add_argument("--mac-menu-bar", type=Path, default=None)
     hero.add_argument("--out", type=Path, required=True)
     hero.add_argument("--bg", type=Path, default=None)
     hero.add_argument("--bg-dim", type=float, default=1.0)
@@ -351,10 +431,18 @@ def main() -> None:
             args.iphone_bezel, IPHONE_BEZELS[args.iphone_color]
         )
         args.mac_bezel = resolve_bezel(args.mac_bezel, MAC_BEZELS[args.mac_color])
-        for label, path in (("phone", args.phone), ("mac", args.mac)):
+        for label, path in (
+            ("phone", args.phone),
+            ("mac", args.mac),
+            ("mac wallpaper", args.mac_wallpaper),
+            ("mac menu bar", args.mac_menu_bar),
+        ):
+            if path is None:
+                continue
             if not path.expanduser().is_file():
                 raise SystemExit(f"{label} screenshot not found: {path}")
-            setattr(args, label, path.expanduser())
+            attr = label.replace(" ", "_")
+            setattr(args, attr, path.expanduser())
         if args.bg is not None:
             args.bg = args.bg.expanduser()
             if not args.bg.is_file():
