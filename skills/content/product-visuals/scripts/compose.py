@@ -13,6 +13,8 @@ from PIL import Image, ImageEnhance, ImageFilter
 
 CANVAS = (4800, 2700)
 CACHE = Path.home() / ".cache" / "product-visuals" / "bezels"
+PHONE_X_IN_MAC = 0.88
+PHONE_Y_IN_MAC = 0.24
 IPHONE_BEZELS = {
     "silver": "iphone-17-pro-silver-portrait.png",
     "deep-blue": "iphone-17-pro-deep-blue-portrait.png",
@@ -135,6 +137,34 @@ def contact_shadow(
     return shadow, (ox, oy)
 
 
+def opaque_bbox(im: Image.Image, threshold: int = 8) -> tuple[int, int, int, int]:
+    alpha = np.asarray(im.split()[-1])
+    ys, xs = np.where(alpha > threshold)
+    if len(xs) == 0:
+        return (0, 0, im.width, im.height)
+    return int(xs.min()), int(ys.min()), int(xs.max()) + 1, int(ys.max()) + 1
+
+
+def dual_hero_positions(
+    canvas: tuple[int, int], mac: Image.Image, phone: Image.Image
+) -> tuple[tuple[int, int], tuple[int, int]]:
+    cw, ch = canvas
+    mx0, my0, mx1, my1 = opaque_bbox(mac)
+    px0, py0, px1, py1 = opaque_bbox(phone)
+    mac_ow, mac_oh = mx1 - mx0, my1 - my0
+    phone_pos = (
+        mx0 + int(mac_ow * PHONE_X_IN_MAC) - px0,
+        my0 + int(mac_oh * PHONE_Y_IN_MAC) - py0,
+    )
+    union_l = min(mx0, phone_pos[0] + px0)
+    union_t = min(my0, phone_pos[1] + py0)
+    union_r = max(mx1, phone_pos[0] + px1)
+    union_b = max(my1, phone_pos[1] + py1)
+    dx = (cw - (union_r - union_l)) // 2 - union_l
+    dy = (ch - (union_b - union_t)) // 2 - union_t
+    return (dx, dy), (phone_pos[0] + dx, phone_pos[1] + dy)
+
+
 def scale_to_width(im: Image.Image, width: int) -> Image.Image:
     h = int(im.height * (width / im.width))
     return resize_rgba(im, (width, h))
@@ -145,28 +175,67 @@ def scale_to_height(im: Image.Image, height: int) -> Image.Image:
     return resize_rgba(im, (w, height))
 
 
-def studio_bg(size: tuple[int, int]) -> Image.Image:
+Rgb = tuple[float, float, float]
+
+
+def shot_palette(paths: list[Path]) -> tuple[Rgb, Rgb, Rgb]:
+    chunks = []
+    for path in paths:
+        im = Image.open(path).convert("RGB")
+        im.thumbnail((96, 96), Image.Resampling.BOX)
+        chunks.append(np.asarray(im, dtype=np.float32).reshape(-1, 3))
+    pix = np.concatenate(chunks, axis=0)
+    lum = pix @ np.array([0.2126, 0.7152, 0.0722], dtype=np.float32)
+    mid = float(np.median(lum))
+    dark = pix[lum <= mid]
+    light = pix[lum >= mid]
+    if len(dark) == 0:
+        dark = pix
+    if len(light) == 0:
+        light = pix
+    base = tuple(float(v) for v in dark.mean(axis=0))
+    lift = tuple(float(v) for v in light.mean(axis=0))
+    chroma = pix.max(axis=1) - pix.min(axis=1)
+    sat = chroma > 25
+    if sat.any():
+        thresh = float(np.percentile(chroma[sat], 70))
+        accent = tuple(float(v) for v in pix[chroma >= thresh].mean(axis=0))
+    else:
+        accent = lift
+    return base, lift, accent
+
+
+def tone_bg(size: tuple[int, int], base: Rgb, lift: Rgb, accent: Rgb) -> Image.Image:
     w, h = size
     ys, xs = np.mgrid[0:h, 0:w].astype(np.float32)
     xn, yn = xs / max(w - 1, 1), ys / max(h - 1, 1)
-    base = np.zeros((h, w, 3), dtype=np.float32)
-    base[..., 0] = 12 + 8 * yn
-    base[..., 1] = 13 + 7 * yn
-    base[..., 2] = 20 + 10 * (1 - yn)
-    rose = np.exp(-((xn - 0.88) ** 2) / 0.08 - (yn - 0.82) ** 2 / 0.10)
-    blue = np.exp(-((xn - 0.18) ** 2) / 0.10 - (yn - 0.16) ** 2 / 0.08)
-    base[..., 0] += 70 * rose + 18 * blue
-    base[..., 1] += 38 * rose + 42 * blue
-    base[..., 2] += 32 * rose + 80 * blue
-    return Image.fromarray(np.clip(base, 0, 255).astype(np.uint8)).convert("RGBA")
+    canvas = np.zeros((h, w, 3), dtype=np.float32)
+    t = 0.35 * (1 - yn) + 0.15 * (1 - xn)
+    for i in range(3):
+        canvas[..., i] = base[i] + (lift[i] - base[i]) * t
+    blob = np.exp(-((xn - 0.86) ** 2) / 0.10 - ((yn - 0.82) ** 2) / 0.12)
+    mix = blob * 0.18
+    canvas += (np.array(accent, dtype=np.float32) - canvas) * mix[..., None]
+    return Image.fromarray(np.clip(canvas, 0, 255).astype(np.uint8)).convert("RGBA")
 
 
-def load_bg(path: Path | None, size: tuple[int, int], dim: float) -> Image.Image:
-    if path is None:
-        return studio_bg(size)
-    bg = Image.open(path).convert("RGB").resize(size, Image.Resampling.LANCZOS)
+def load_bg(
+    path: Path | None,
+    size: tuple[int, int],
+    dim: float,
+    shots: list[Path] | None = None,
+) -> Image.Image:
+    if path is not None:
+        bg = Image.open(path).convert("RGB").resize(size, Image.Resampling.LANCZOS)
+    elif shots:
+        base, lift, accent = shot_palette(shots)
+        bg = tone_bg(size, base, lift, accent)
+    else:
+        bg = tone_bg(
+            size, (20.0, 20.0, 22.0), (38.0, 36.0, 34.0), (38.0, 36.0, 34.0)
+        )
     if dim < 1:
-        bg = ImageEnhance.Brightness(bg).enhance(dim)
+        bg = ImageEnhance.Brightness(bg.convert("RGB")).enhance(dim)
     return bg.convert("RGBA")
 
 
@@ -203,15 +272,16 @@ def resolve_bezel(explicit: Path | None, cache_name: str) -> Path:
 def dual_device_hero(args: argparse.Namespace) -> None:
     w, h = args.width, args.height
     sx, sy = w / CANVAS[0], h / CANVAS[1]
-    canvas = load_bg(args.bg, (w, h), args.bg_dim)
+    canvas = load_bg(
+        args.bg, (w, h), args.bg_dim, shots=[args.phone, args.mac]
+    )
     mac = scale_to_width(
         frame_device(args.mac_bezel, args.mac, top=True), int(3360 * sx)
     )
     phone = scale_to_height(
         frame_device(args.iphone_bezel, args.phone, top=True), int(1720 * sy)
     )
-    mac_pos = (int(150 * sx), int(150 * sy))
-    phone_pos = (int(3080 * sx), int(820 * sy))
+    mac_pos, phone_pos = dual_hero_positions((w, h), mac, phone)
     mac_shadow, mac_off = contact_shadow(mac, blur=78, opacity=0.34, spread=0.9)
     phone_shadow, phone_off = contact_shadow(phone, blur=54, opacity=0.3, spread=0.82)
     paste(canvas, mac_shadow, (mac_pos[0] + mac_off[0], mac_pos[1] + mac_off[1]))

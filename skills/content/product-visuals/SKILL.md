@@ -37,7 +37,7 @@ Compose product marketing stills from **real app screenshots** inside official A
 | `og-card` | 1200×630 share card | stub |
 | `changelog-card` | compact update visual | stub |
 
-Default composition for `dual-device-hero`: 4800×2700, MacBook Pro 14 Space Black slightly left, iPhone 17 Pro Silver overlapping lower right.
+Default composition for `dual-device-hero`: 4800×2700, opaque device group centered on the canvas, MacBook Pro 14 Space Black slightly left of that group, iPhone 17 Pro Silver overlapping lower right.
 
 ## Workflow
 
@@ -46,16 +46,16 @@ Default composition for `dual-device-hero`: 4800×2700, MacBook Pro 14 Space Bla
 [2] Collect --phone and --mac paths (uploads, Simulator PNG, or real window capture)
 [3] If --mac is a web product, build the privacy-safe macOS desktop scene described below
 [4] bash scripts/fetch-bezels.sh
-[5] Choose background (see below)
-[6] uv run scripts/compose.py dual-device-hero --phone … --mac … --out …
-[7] Open the PNG. Confirm UI is readable, no corner overflow, no rectangular plates around devices
+[5] Derive background from the app's 调性 (see Background)
+[6] uv run scripts/compose.py dual-device-hero --phone … --mac … --bg … --out …
+[7] Open the PNG. Confirm UI is readable, no corner overflow, no rectangular plates around devices, background reads as the same product
 ```
 
 ```bash
 HERE="<path-to-this-skill>"
 bash "$HERE/scripts/fetch-bezels.sh"
 uv run "$HERE/scripts/compose.py" dual-device-hero \
-  --phone "$PHONE" --mac "$MAC" --out "$OUT"
+  --phone "$PHONE" --mac "$MAC" --bg "$BG" --out "$OUT"
 ```
 
 Swap background only — same screenshots, new `--bg`:
@@ -69,15 +69,17 @@ uv run "$HERE/scripts/compose.py" dual-device-hero \
 
 ## Background
 
-Treat background as its own input. Do not rebuild device frames to change it.
+The plate is the product's 调性, not a stock cinematic studio. Derive it from the screens (and `DESIGN.md` / tokens if the app repo is known). Do not rebuild device frames to change it.
+
+Yohaku example: 余白, warm parchment `#f9f8f5` / dark desk `#141414`, 梅 `#c56473` ≤5% — paper and ink, not blue volumetric cinema.
 
 | User says | Do |
 | --- | --- |
-| nothing | omit `--bg` — script paints a dark studio fallback |
-| cinematic / 更电影 / 换氛围 | `image_gen` or `gemini-image-generation`: empty 16:9 studio, **no devices, no screens, no text**; then `--bg` |
+| nothing / default | name the app's palette + material from the screenshots (and DESIGN.md). `image_gen` / `gemini-image-generation`: empty 16:9 plate in that 调性, **no devices, no screens, no text**; then `--bg` |
+| cinematic / 更电影 | generic empty studio only when they asked for it |
 | here's a file / 用这张底 | `--bg` that file |
-| 从截图抽色 | sample dominant colors, generate a quiet gradient, `--bg` |
-| 换背景 on an existing hero | keep the same `--phone` / `--mac`, only change `--bg` |
+| omit `--bg` / generation unavailable | compose.py samples the screenshots into a quiet gradient |
+| 换背景 on an existing hero | keep the same `--phone` / `--mac`; new `--bg` still from that app's 调性 |
 
 Generated atmospheres must stay empty. If a model draws a laptop or phone, discard and regenerate.
 
@@ -105,6 +107,8 @@ Before claiming done:
 - Open the PNG. Read actual UI text on both screens — it must match the source screenshots.
 - Check iPhone top-left and both bottom corners: no screenshot rectangle leaking past the silver frame.
 - Check around both devices: no darker rectangular plate, no second shadow card on the Mac.
+- Check the pair as a group: left/right gaps around the **opaque chassis** should match. A left-heavy Mac with empty canvas on the right means the layout used PNG origin instead of the opaque union.
+- Background shares the product's palette and material. A blue cinematic void behind a parchment/ink app is wrong.
 - For a web product, confirm the browser is genuine Safari, fills roughly 84–90% of the desktop width, and contains no private browser or desktop data.
 - Confirm the Menu Bar uses official component geometry and the requested light/dark template color; default to white glyphs and text for product visuals.
 - If only the background should change, the framed screens must be identical to the previous export.
@@ -118,6 +122,8 @@ Before claiming done:
 | Gaussian-blur the full bezel image for a drop shadow | Padded contact shadow under the base |
 | Resize RGBA without premultiply | Dirty transparent RGB becomes a gray halo |
 | Check Apple bezels into git | Cache only; `fetch-bezels.sh` |
+| Pin Mac at `(150,150)` / center the bezel PNG canvas | Center the opaque-union; 14" Mac mockups have ~230px empty top pad |
+| Default to cinematic blue-rose studio | Read the screens (and DESIGN.md). Generate or sample from the app |
 | Use the current Mac desktop as convenient filler | Replace it with a public macOS wallpaper and a clean desktop scene |
 | Hand-draw Safari or make it too small | Capture real Safari and center it at about 88% desktop width |
 | Recreate the Menu Bar from memory | Start from Apple's macOS UI Kit component and tint its template pixels |
