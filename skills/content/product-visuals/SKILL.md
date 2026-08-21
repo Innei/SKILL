@@ -26,7 +26,8 @@ Compose product marketing stills from **real app screenshots** inside official A
 4. Zero RGB on fully transparent bezel pixels and premultiply before LANCZOS resize.
 5. Shadows are padded contact shadows under the chassis. Do not blur the full bezel canvas — that stamps a rectangular plate.
 6. Never use the user's live desktop, personal wallpaper, notifications, bookmarks, or unrelated windows unless they explicitly request it.
-7. For a web product on Mac, capture the real site in Safari. Do not redraw Safari chrome or simulate it with generic rounded rectangles.
+7. For a web product on Mac, screenshot a real local Safari **window** (`screencapture -l <CGWindowID>`). Do not paste a webpage screenshot into someone else's Safari chrome. Do not redraw Safari.
+8. For iPhone, capture the simulator **framebuffer** with `xcrun simctl io <udid> screenshot`. Never screenshot the Simulator.app window. Never crop a screen out of an already-framed mockup.
 
 ## Recipes
 
@@ -43,7 +44,7 @@ Default composition for `dual-device-hero`: 4800×2700, opaque device group cent
 
 ```text
 [1] Pick recipe from the request (default dual-device-hero)
-[2] Collect --phone and --mac paths (uploads, Simulator PNG, or real window capture)
+[2] Collect --phone (simctl framebuffer PNG) and --mac (upload or real Mac window / privacy-safe desktop scene)
 [3] If --mac is a web product, build the privacy-safe macOS desktop scene described below
 [4] bash scripts/fetch-bezels.sh
 [5] Derive background from the app's 调性 (see Background)
@@ -89,11 +90,30 @@ Generated atmospheres must stay empty. If a model draws a laptop or phone, disca
 
 When the Mac screen presents a website, read [references/macos-web-scene.md](references/macos-web-scene.md) before composing it. The `--mac` input must be the resulting privacy-safe desktop scene: public macOS wallpaper, official Menu Bar components, and a large centered real Safari window.
 
+## iPhone capture
+
+`--phone` is the device **framebuffer**, not a photo of Simulator.app.
+
+```bash
+UDID=$(xcrun simctl list devices booted | awk -F '[()]' '/Booted/{print $2; exit}')
+xcrun simctl io "$UDID" screenshot phone.png
+```
+
+Accept: a rectangle at the device's native screenshot size (iPhone 17 Pro: **1206×2622**). The status bar and iOS's black island pill are framebuffer pixels; the official bezel supplies the hardware island and camera.
+
+Reject and recapture:
+
+- Simulator.app window (`screencapture`, axe of the window, a display screenshot that includes chassis chrome)
+- A crop from an already-framed mockup (camera already in the island, rounded device corners in the PNG)
+- Any size other than the booted device's native screenshot pixels
+
+The workflow's "real window capture" is **Mac only**.
+
 ## Inputs
 
 | Flag | Meaning |
 | --- | --- |
-| `--phone` | iPhone screenshot (prefer native simulator PNG, e.g. 1206×2622 for 17 Pro) |
+| `--phone` | Simulator framebuffer PNG from `simctl io screenshot` (iPhone 17 Pro: 1206×2622) |
 | `--mac` | privacy-safe macOS scene or real app window; never default to the user's personal desktop capture |
 | `--bg` | optional background image, any aspect; resized to the canvas |
 | `--out` | destination PNG |
@@ -104,8 +124,10 @@ If a user-supplied Mac capture includes wallpaper, inspect it for private conten
 
 Before claiming done:
 
+- Open `--phone` before composing: rectangle at native size, no silver chassis, no camera lens in the island.
 - Open the PNG. Read actual UI text on both screens — it must match the source screenshots.
 - Check iPhone top-left and both bottom corners: no screenshot rectangle leaking past the silver frame.
+- Check the Dynamic Island: one hardware island with the camera. A second black pill beside or below it means `--phone` was not a framebuffer shot, or the island was not covered by the bezel.
 - Check around both devices: no darker rectangular plate, no second shadow card on the Mac.
 - Check the pair as a group: left/right gaps around the **opaque chassis** should match. A left-heavy Mac with empty canvas on the right means the layout used PNG origin instead of the opaque union.
 - Background shares the product's palette and material. A blue cinematic void behind a parchment/ink app is wrong.
@@ -125,5 +147,7 @@ Before claiming done:
 | Pin Mac at `(150,150)` / center the bezel PNG canvas | Center the opaque-union; 14" Mac mockups have ~230px empty top pad |
 | Default to cinematic blue-rose studio | Read the screens (and DESIGN.md). Generate or sample from the app |
 | Use the current Mac desktop as convenient filler | Replace it with a public macOS wallpaper and a clean desktop scene |
-| Hand-draw Safari or make it too small | Capture real Safari and center it at about 88% desktop width |
+| Hand-draw Safari, paste a site shot into another window's chrome, or strip the window shadow with `screencapture -o` | Resize the live Safari window, `screencapture -l` (keep shadow), composite that PNG with its alpha |
 | Recreate the Menu Bar from memory | Start from Apple's macOS UI Kit component and tint its template pixels |
+| Screenshot of Simulator.app, or a crop from a framed mockup | `xcrun simctl io <udid> screenshot` at native size |
+| Two Dynamic Islands / camera floating next to a black pill | Recapture with simctl; do not feed an already-framed PNG as `--phone` |

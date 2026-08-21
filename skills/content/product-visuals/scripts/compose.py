@@ -83,9 +83,40 @@ def cover(src: Image.Image, box: tuple[int, int, int, int], top: bool = False) -
     return img.crop((left, top_off, left + tw, top_off + th))
 
 
+def hide_framebuffer_island(shot: Image.Image) -> Image.Image:
+    rgb = np.asarray(shot.convert("RGB")).copy()
+    h, w = rgb.shape[:2]
+    if h < int(w * 1.8) or w < 200:
+        return shot.convert("RGB")
+    lum = rgb.mean(axis=2)
+    cx = w // 2
+    top = min(h, max(96, h // 12))
+    dark = lum[:top] < 12
+    ys, xs = np.where(dark)
+    if len(xs) < 80:
+        return Image.fromarray(rgb)
+    y0, y1 = int(ys.min()), int(ys.max()) + 1
+    x0, x1 = int(xs.min()), int(xs.max()) + 1
+    if (x1 - x0) < w * 0.18 or (x1 - x0) > w * 0.55:
+        return Image.fromarray(rgb)
+    if abs((x0 + x1) / 2 - cx) > w * 0.08:
+        return Image.fromarray(rgb)
+    if (y1 - y0) < 24 or (y1 - y0) > top * 0.9:
+        return Image.fromarray(rgb)
+    pad = max(8, (x0) // 8)
+    sample = rgb[y0:y1, max(0, x0 - pad - 40) : max(0, x0 - 8)]
+    if sample.size == 0:
+        sample = rgb[y0:y1, min(w, x1 + 8) : min(w, x1 + pad + 40)]
+    if sample.size == 0:
+        return Image.fromarray(rgb)
+    fill = sample.reshape(-1, 3).mean(axis=0)
+    rgb[y0:y1, x0:x1] = fill
+    return Image.fromarray(rgb)
+
+
 def frame_device(bezel_path: Path, shot_path: Path, top: bool = False) -> Image.Image:
     bezel = clean_rgba(Image.open(bezel_path))
-    shot = Image.open(shot_path)
+    shot = hide_framebuffer_island(Image.open(shot_path))
     hole = interior_mask(bezel)
     ys, xs = np.where(hole)
     if len(xs) == 0:

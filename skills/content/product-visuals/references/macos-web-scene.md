@@ -20,7 +20,7 @@ Do not use a screenshot of the user's live desktop as the base layer.
 | --- | --- | --- |
 | Wallpaper | Public, generic macOS wallpaper matching the requested release | Personal wallpaper, current desktop capture, AI-generated imitation when an official/public image exists |
 | Menu Bar | Apple macOS UI Kit component exported as transparent PNG | Hand-drawn Apple glyph, guessed status icons, fake menu geometry |
-| Safari | Real Safari screenshot of the product URL | Browser mockup, synthetic chrome, a screenshot containing personal tabs or bookmarks |
+| Safari | Real local Safari **window** via `screencapture -l <CGWindowID>` of the product URL. Resize the live window so the page reflows; then capture chrome and page together | Browser mockup; synthetic chrome; a page screenshot pasted into another Safari window; a capture containing personal tabs or bookmarks |
 
 Keep downloaded Apple Design Resources in `~/.cache/product-visuals/`; never commit them to the project or skill repository.
 
@@ -42,6 +42,7 @@ Do not commit the Sketch document or exported PNG. Do not approximate the compon
 - Center the Safari window below the Menu Bar at approximately 88% of desktop width; 84–90% is acceptable.
 - Keep the Safari window large enough that the product, rather than the wallpaper, dominates the display.
 - Preserve authentic Safari controls, corner radius, and window shadow.
+- Capture with `screencapture -l <CGWindowID>` after setting the live window's bounds. Do not pass `-o`: that drops the window shadow. The PNG already has rounded corners and shadow in its alpha — composite with that alpha. Never flatten the window into a rectangle, never draw a corner or a drop shadow, never paste a page-only PNG into a different window's traffic lights and toolbar.
 - Remove the pointer from the capture or park it outside the visible product region before capture.
 
 ## Capture hygiene
