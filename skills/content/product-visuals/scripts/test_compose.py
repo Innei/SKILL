@@ -11,6 +11,7 @@ import tempfile
 from compose import (
     CANVAS,
     dual_hero_positions,
+    expand_baked_display_corners,
     load_bg,
     opaque_bbox,
     scale_to_height,
@@ -103,6 +104,24 @@ class RealBezelLayoutTests(unittest.TestCase):
         left, top, right, bottom = union
         self.assertLessEqual(abs(left - (CANVAS[0] - right)), 1)
         self.assertLessEqual(abs(top - (CANVAS[1] - bottom)), 1)
+
+
+class ExpandBakedDisplayCornersTests(unittest.TestCase):
+    def test_fills_black_corner_pies_and_keeps_glyphs(self) -> None:
+        im = Image.new("RGB", (400, 220), (126, 95, 69))
+        px = im.load()
+        for y in range(28):
+            for x in range(28):
+                if x * x + y * y <= 28 * 28:
+                    px[x, y] = (0, 0, 0)
+                    px[399 - x, y] = (0, 0, 0)
+        for x in range(40, 55):
+            for y in range(8, 24):
+                px[x, y] = (240, 240, 235)
+        out = expand_baked_display_corners(im)
+        self.assertGreater(sum(out.getpixel((0, 0))), 80)
+        self.assertGreater(sum(out.getpixel((399, 0))), 80)
+        self.assertGreater(out.getpixel((48, 16))[0], 180)
 
 
 class ShotPaletteTests(unittest.TestCase):
