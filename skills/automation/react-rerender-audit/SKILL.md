@@ -249,6 +249,7 @@ React's own answer, not a memo barrier:
 | Conditional wrapper (`if (x) child = <W>{child}</W>`) flips after an async load | Keep the shape stable — always render the wrapper, pass a fallback value |
 | One giant component subscribing to N stores to run init hooks | Split per concern; each init hook in its own leaf component |
 | Global event subscription in a shared hook (`bindI18nStore`, a store's `subscribe`) fires per batch | Drop the broad binding; emit one refresh after the batch settles |
+| A hidden pane (`<Activity mode="hidden">`, a collapsed panel, a `display:none` tab) mounts its full subtree | Thread the existing `enabled` flag all the way to the leaves — including sibling components the flag never reached |
 
 Reach for `memo()` only when a leaf genuinely receives changing props and
 is expensive. `memo` on a component whose parent should not have rendered
@@ -300,7 +301,23 @@ const loaded = !document.querySelector('[class*=keleton]') && document.body.inne
 
 Cross-check the component names too: if the user can see a sidebar full of
 rows and your top-30 is nothing but providers, you measured a different page
-than the one they are complaining about. Burned once — a local database
+than the one they are complaining about.
+
+**Then ask whether the mounted components are even on screen.** Group the
+instances by mount timestamp; a late wave is usually one list. Resolve each
+one's DOM node and measure it:
+
+```js
+const el = domOf(fiber);   // walk fiber.child until stateNode is an Element
+const r = el.getBoundingClientRect();
+const hidden = r.width === 0 || r.height === 0 || el.offsetParent === null;
+```
+
+`72 rows, visible=0` turns a vague "the page is heavy" into a specific bug.
+Walk that node's DOM ancestors printing `display` / `visibility` / box size to
+find which wrapper hides it, then map that element back to a component
+(`el[Object.keys(el).find(k => k.startsWith('__reactFiber$'))]`) to name the
+owner. Burned once — a local database
 version mismatch held the app on its skeleton, and a 454-render sample got
 reported as the fix's before/after when the real boot was 27,000.
 
