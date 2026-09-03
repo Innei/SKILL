@@ -41,6 +41,7 @@ SKILL/
 
 | Skill | Purpose |
 | ----- | ------- |
+| [`react-rerender-audit`](skills/automation/react-rerender-audit/SKILL.md) | Measure React re-render counts over CDP, name the exact hook causing them, fix by lowering state, lock with a Profiler test |
 | [`session-handoff`](skills/automation/session-handoff/SKILL.md) | Produce a self-contained handoff prompt for another agent when delegating continued work |
 | [`session-to-skill-and-blog`](skills/automation/session-to-skill-and-blog/SKILL.md) | Classify a completed engineering session into a narrative blog, zero or more reusable skills, and project-local documentation |
 | [`working-summary`](skills/automation/working-summary/SKILL.md) | Work summary / 周报 from GitHub PRs/commits and optional Linear trackers; markdown for notes (e.g. Obsidian) |
