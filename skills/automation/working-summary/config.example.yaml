@@ -38,12 +38,13 @@ linear:
 
 output:
   # Default highlighted choice at the end-of-run prompt. Single or `+`-joined:
-  #   markdown | html | both | linear | publish
+  #   markdown | html | both | linear | publish | lobehub
   #   linear+md | linear+html | linear+both
   #   publish | html+publish | linear+publish | linear+html+publish
+  #   lobehub | lobehub+md | lobehub+html | lobehub+linear ...
   # `linear*` requires the linear block above. `publish*` requires the
-  # output.publish block below. `publish` alone uploads to R2 with no
-  # local file; composite values do both.
+  # output.publish block below, `lobehub*` the output.lobehub block.
+  # `publish` alone uploads to R2 with no local file; composite values do both.
   format: html
   # Language for the synthesized report prose. Section headers (e.g.
   # "In Progress", "Features") and raw PR/issue/commit titles are kept
@@ -65,3 +66,19 @@ output:
   publish:
     bucket: working-summary-reports
     base_url: https://reports.innei.dev
+
+  # Optional. Enables the `lobehub` end-of-run choice. Creates a markdown
+  # document in a LobeHub knowledge base via the `lh` CLI.
+  # Drop this block to hide `lobehub` from the prompt.
+  lobehub:
+    # Workspace ID (NOT the slug — a slug is silently ignored by the API and
+    # falls back to personal scope). Get it from:
+    #   lh kb list  # after exporting the id below
+    workspace_id: mN7DPV5fbTbrFEET
+    slug: lobehub # only used to build the returned document URL
+    kb: kb_4IgAWxJjIdmi # 周报同步
+    # Optional folder inside the KB; created on demand.
+    # Placeholders: {year} {month} {week} {start} {end}
+    folder: "{year}.{month}"
+    # Document title. Same placeholders, plus {author}.
+    title: "{author} 周报 — {year}-W{week}（{start}–{end}）"

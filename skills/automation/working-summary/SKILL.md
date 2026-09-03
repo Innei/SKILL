@@ -57,16 +57,18 @@ At the end of synthesis, prompt the user with these options:
 | `html`         | Render themed HTML to `$TMPDIR/working-summary-<stamp>.html` via `scripts/render_html.py`, run `open` on it, then ask whether to also move a copy to `output.dir/{filename}` (ext=`html`).                                                                              |
 | `both`         | Do `md` and `html` in that order.                                                                                                                                                                                                                                       |
 | `linear`       | Create a Linear issue in the **report cycle**, assigned to the viewer, state set to the team's `completed` state (typically "Done"), with the report markdown as the description. Requires Linear to be configured AND connected. See **Linear archive** below.          |
+| `lobehub`      | Create a markdown document in the configured LobeHub knowledge base via the `lh` CLI (the company weekly-report library). Requires `output.lobehub`. See **LobeHub publish** below.                                                                          |
 | `publish`      | Upload the HTML report to the configured R2 bucket (served at the configured public base URL via a Cloudflare Worker behind Access). Requires `output.publish` to be set. Renders HTML to a tempfile if no `html` was produced yet. See **R2 publish** below.            |
 
-Choices compose with `+`: e.g. `linear+html`, `html+publish`, `linear+html+publish`.
+Choices compose with `+`: e.g. `linear+html`, `html+publish`, `lobehub+md`.
 Order of operations within a composite:
 
 1. **linear** archive (if requested) — so the issue exists before any file write.
-2. **publish** to R2 (if requested) — so the public URL exists before the local file is touched.
-3. **html** / **md** local persistence (if requested).
+2. **lobehub** publish (if requested) — the markdown goes up as-is, before any rendering.
+3. **publish** to R2 (if requested) — so the public URL exists before the local file is touched.
+4. **html** / **md** local persistence (if requested).
 
-Bare `linear` / `publish` is fine when no local file is wanted.
+Bare `linear` / `lobehub` / `publish` is fine when no local file is wanted.
 
 **Default choice from config**: when `output.format` is set in the config
 file, use it as the **highlighted default** in the prompt (e.g.
@@ -75,7 +77,8 @@ The user can still override by typing another choice. When `output.format`
 is unset or is `markdown`, highlight `md` as default. When `output.format`
 is `both`, highlight `both`. `output.format` may also be set to any of the
 composite values (`linear`, `linear+md`, `linear+html`, `linear+both`,
-`publish`, `html+publish`, `linear+publish`, `linear+html+publish`).
+`publish`, `html+publish`, `linear+publish`, `linear+html+publish`,
+`lobehub`, `lobehub+md`, `lobehub+html`, `lobehub+linear`).
 
 The HTML renderer is a deterministic post-processor — the LLM only ever
 produces markdown. See **HTML Rendering** below.
@@ -305,6 +308,7 @@ Targets:
 - **html temporary** → `$TMPDIR/working-summary-{start}-{end}.html` then `open` it
 - **html permanent** (optional follow-up) → `{output.dir}/{filename}` (ext=`html`)
 - **linear archive** → no file; see **Linear archive** below
+- **lobehub** → no file; see **LobeHub publish** below
 
 Never overwrite an existing file silently — if present, ask the user
 (append, overwrite, or new suffix).
@@ -371,6 +375,66 @@ The hosting Worker code itself lives under `host/` (see `host/README.md`)
 and is deployed independently via `wrangler deploy`. The skill never
 redeploys the Worker — new reports are just new objects in the bucket and
 become visible in the index on the next page load.
+
+## LobeHub publish
+
+When the user picks `lobehub` (or a composite), the skill must:
+
+1. Write the final synthesized markdown to a working file.
+2. Expand `output.lobehub.title` and `output.lobehub.folder` with the same
+   placeholders used for filenames, plus `{author}` (the report author's
+   display name — ask once if the config does not pin it in the title).
+3. Run:
+
+   ```bash
+   scripts/publish_lobehub.py \
+     --workspace <output.lobehub.workspace_id> \
+     --slug <output.lobehub.slug> \
+     --kb <output.lobehub.kb> \
+     --folder "2026.08" \
+     --title "Innei 周报 — 2026-W35（08-24–08-30）" \
+     --md report.md
+   ```
+
+4. The script creates the folder on demand, refuses by default when a
+   document with the same title already exists (exit 1), and prints
+   `{id, title, parent, url}` as JSON on success. Surface the URL.
+5. On a duplicate, ask the user: re-run with `--on-duplicate replace`
+   (creates the new doc, then removes the old one) or `allow` (keeps both).
+   Never pass `replace` without asking.
+6. `--dry-run` prints the resolved kb / folder / parent / duplicate list
+   without writing anything. Use it when the user wants to confirm the
+   destination first.
+
+`output.lobehub.workspace_id` must be the workspace **ID**, not the slug.
+The `X-Workspace-Id` header is not validated server-side: a slug is
+accepted, silently ignored, and every call falls back to personal scope —
+so a wrong value looks like "the KB does not exist". `lh whoami` is no help
+either — its `Scope:` line just echoes whatever was passed in.
+
+The CLI exposes no `workspace list` command, and the app URL carries the
+slug, not the ID. To rediscover the ID, capture the session token off a
+logging proxy and call the tRPC route directly:
+
+```bash
+cat > proxy.mjs <<'JS'
+import http from 'node:http'; import https from 'node:https'
+http.createServer((req, res) => {
+  console.error(req.headers['oidc-auth'])
+  const p = https.request('https://app.lobehub.com' + req.url,
+    { method: req.method, headers: { ...req.headers, host: 'app.lobehub.com' } },
+    r => { res.writeHead(r.statusCode, r.headers); r.pipe(res) })
+  req.pipe(p)
+}).listen(8899)
+JS
+node proxy.mjs 2>token.log &
+LOBEHUB_SERVER=http://127.0.0.1:8899 lh whoami >/dev/null
+curl -s -H "Oidc-Auth: $(head -1 token.log)" \
+  'https://app.lobehub.com/trpc/lambda/workspace.list?input=%7B%7D'
+```
+
+The response lists `{id, slug, name}` per workspace. Store the `id` in
+config; do not repeat this dance per run.
 
 ## HTML Rendering
 
@@ -448,10 +512,12 @@ Offer — and **wait for explicit confirmation** — before any write action:
 - `scripts/create_linear_issue.py --json collected.json --md report.md --dry-run` — print the `issueCreate` mutation input without sending. Drop `--dry-run` to actually create the issue in the report cycle.
 - `scripts/publish_r2.sh check <bucket> <key>` — probe whether a key already exists in the R2 bucket (exit 0 = yes, 1 = no, 2 = wrangler/auth error).
 - `scripts/publish_r2.sh put <bucket> <local-file> <key> <base-url>` — upload the local file as `<key>` with `text/html` content type, print the resulting public URL.
+- `scripts/publish_lobehub.py --workspace <id> --kb <kb-id> --title T --md report.md --dry-run` — resolve the KB / folder / duplicates without writing. Drop `--dry-run` to create the document.
 
 ## Dependencies
 
 - `gh` CLI, authenticated (`gh auth status`)
 - `uv` (for script shebangs — `collect.py` pulls `pyyaml` + `chinesecalendar`, `render_html.py` pulls `markdown-it-py` + `beautifulsoup4` on first run)
 - `linear` CLI, authenticated (`linear auth login`) — only required if `config.linear` is set
+- `lh` CLI (`@lobehub/cli`), logged in (`lh login`) — only required if `output.lobehub` is set
 - Make scripts executable once: `chmod +x skills/automation/working-summary/scripts/*.py`
