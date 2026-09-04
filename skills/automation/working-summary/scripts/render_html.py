@@ -25,6 +25,9 @@ from markdown_it import MarkdownIt
 
 HERE = Path(__file__).resolve().parent
 TEMPLATE_PATH = HERE / "templates" / "report.html"
+sys.path.insert(0, str(HERE))
+
+from pr_stats import CANONICAL, build_stats  # noqa: E402
 
 CONVENTIONAL = r"feat|fix|refactor|perf|build|ci|chore|docs|test|style|revert"
 
@@ -334,43 +337,63 @@ def render_meta_grid(meta: dict) -> str:
     return '<div class="meta-grid">' + "".join(parts) + "</div>"
 
 
-REPO_STAT_MD_RE = re.compile(r"^###\s+([^\s]+)\s+\*\((\d+)\s+commits?\)\*", re.MULTILINE)
+def resolve_stats(collect: Optional[dict]) -> dict:
+    if not collect:
+        return {"prs_merged": 0, "by_type": {}, "by_repo": []}
+    stats = collect.get("stats")
+    if isinstance(stats, dict) and stats.get("by_repo") is not None:
+        return stats
+    return build_stats(collect.get("github") or {})
 
 
-def repo_stats_from_markdown(md_text: str) -> list[tuple[str, int]]:
-    sec_match = re.search(r"##\s+[^\n]*?仓库[^\n]*\n(.*?)(?=\n##\s|\Z)", md_text, re.DOTALL)
-    scope = sec_match.group(1) if sec_match else md_text
-    return [(name, int(n)) for name, n in REPO_STAT_MD_RE.findall(scope)]
-
-
-def repo_stats_from_json(collect: dict) -> list[tuple[str, int]]:
-    gh = collect.get("github", {}) or {}
-    rows = [(repo, len(data.get("commits") or [])) for repo, data in gh.items()]
-    rows = [r for r in rows if r[1] > 0]
-    rows.sort(key=lambda x: -x[1])
-    return rows
-
-
-def render_stats(repos: list[tuple[str, int]]) -> str:
-    if not repos:
+def render_stats(stats: dict) -> str:
+    if not stats or not stats.get("prs_merged"):
         return ""
-    max_count = max(c for _, c in repos) or 1
-    lines = []
-    for name, c in repos:
-        width = max(1, int(round(30 * c / max_count)))
-        bar = "█" * width
-        lines.append(
+    by_type = stats.get("by_type") or {}
+    pills = []
+    for key in CANONICAL:
+        n = by_type.get(key)
+        if not n:
+            continue
+        pills.append(
+            f'<span class="pill {htmllib.escape(key)}">'
+            f"<b>{n}</b> {htmllib.escape(key)}</span>"
+        )
+    pills_html = f'<div class="pills">{"".join(pills)}</div>' if pills else ""
+
+    repos = stats.get("by_repo") or []
+    max_prs = max((row.get("prs") or 0 for row in repos), default=0) or 1
+    rows = []
+    for row in repos:
+        prs = row.get("prs") or 0
+        if prs <= 0:
+            continue
+        outer = max(6, int(round(100 * prs / max_prs)))
+        segs = []
+        mix = row.get("by_type") or {}
+        for key in CANONICAL:
+            n = mix.get(key) or 0
+            if not n:
+                continue
+            width = 100.0 * n / prs
+            segs.append(
+                f'<i class="seg {htmllib.escape(key)}" style="width:{width:.2f}%" '
+                f'title="{htmllib.escape(key)} {n}"></i>'
+            )
+        rows.append(
             f'<div class="row">'
-            f'<span class="name">{htmllib.escape(name)}</span>'
-            f'<span class="bar">{bar}</span>'
-            f'<span class="num">{c}</span>'
+            f'<span class="name">{htmllib.escape(row.get("repo") or "")}</span>'
+            f'<span class="barwrap"><span class="stack" style="width:{outer}%">'
+            f'{"".join(segs)}</span></span>'
+            f'<span class="num">{prs}</span>'
             f"</div>"
         )
     return (
         '<section id="stats">\n'
-        '  <h2>附：活动热度</h2>\n'
+        "  <h2>附：活动构成</h2>\n"
+        f"  {pills_html}\n"
         '  <div class="stats">\n    '
-        + "\n    ".join(lines)
+        + "\n    ".join(rows)
         + "\n  </div>\n</section>"
     )
 
@@ -458,9 +481,7 @@ def main() -> int:
     # 12. Meta grid
     meta_grid_html = render_meta_grid(meta)
 
-    # 13. Stats (prefer JSON; fallback to markdown scrape)
-    repos = repo_stats_from_json(collect) if collect else repo_stats_from_markdown(md_text)
-    stats_html = render_stats(repos)
+    stats_html = render_stats(resolve_stats(collect))
 
     # 14. Prompt line
     user = args.user or meta.get("author") or os.environ.get("USER", "user")

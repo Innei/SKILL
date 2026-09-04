@@ -132,6 +132,13 @@ Returns JSON to stdout:
       "commits":     [...],  // /repos/{r}/commits?author=&since=&until=
       "issues":      [...]   // /repos/{r}/issues?assignee=&since=, PRs filtered out
     }
+  },
+  "stats": {
+    "prs_merged": 34,
+    "by_type": { "feat": 14, "fix": 9, "refactor": 6, "chore": 5 },
+    "by_repo": [
+      { "repo": "lobehub/lobehub", "prs": 18, "by_type": { "feat": 8, "fix": 5 } }
+    ]
   }
 }
 ```
@@ -210,9 +217,9 @@ The following never anchor a 要点 theme, and never justify one on their own:
 - Formatting-only, single-line config tweaks
 - Release PRs
 
-They still appear under 仓库汇总 — the filter decides what gets narrated, not what gets recorded.
+They still increment `stats` and the repo table. They never anchor a 要点 theme and never become a digest bullet.
 
-Substantive work (features, non-trivial fixes, infra, security) is what theme selection draws from, and always appears in 仓库汇总 regardless of whether a theme picked it up.
+Substantive work (features, non-trivial fixes, infra, security) is what theme selection draws from.
 
 ## Report Synthesis
 
@@ -228,7 +235,8 @@ The output language is controlled by `output.language` in config (default `zh-CN
 So even when `language: zh-CN`, a 本周要点 theme looks like:
 
 ```
-**2. 首屏与冷启动性能治理** — SPA 启动改成按需驱动，桌面把 tray / updater / i18n 等非首帧工作移到 BrowserWindow 创建之后；官网 root loader 的冷请求原本 TTFB 1369ms。[lobehub#17577](https://…) · [lobehub#17811](https://…) · [cloud#1230](https://…)
+**1. 首屏 boot −80%** — 27154 → 5425 render（zh-CN −86%）
+`bindI18nStore: 'added'` 每个 namespace 整树重绘；首屏闭包 3.84MB → 2.26MB。涉及 5 个 PR。[#19120](https://…) · [#19033](https://…)
 ```
 
 …and a 仓库汇总 bullet keeps the raw title verbatim:
@@ -243,34 +251,70 @@ The synthesized language applies to descriptions even when the **PR body** is in
 
 ### Sections
 
-1. **Header** — period title, date range, workday/holiday count, repo count + activity totals.
+1. **Header** — period title, date range, workday/holiday count, repo count + activity totals. Copy `stats.by_type` into a **构成** line (`feat 14 · fix 9 · …`), canonical order, omit zero buckets. Skip the line when `stats.prs_merged == 0`. **Copy `stats`; do not recount.**
+
+   Then a **仓库表** (markdown's stand-in for the HTML stacked bars). One row per `stats.by_repo` entry, same order. No mermaid, no Unicode `█`. Skip the table when `stats.prs_merged == 0`.
+
+   ```
+   | 仓库 | PR | 构成 |
+   | --- | ---: | --- |
+   | lobehub/lobehub | 36 | fix 13 · feat 7 · perf 6 · refactor 5 · chore 5 |
+   ```
+
+   `构成` cell: that row's `by_type`, canonical order, omit zeros. Copy the numbers.
 
 2. **一、本周要点** (Highlights) — **the section the user actually reports from.** Everything else in the report exists to back this section up.
 
    Cluster the window's merged PRs and loose commits into **3–6 cross-repo themes**. A theme is a storyline several PRs advance together — an architecture migration and the defect class it exposed, one performance push landing across OSS + Cloud, a single capability shipped through three repos. It is emphatically **not** "the N most important PRs".
 
-   Each theme:
+   Each theme is **exactly two lines**:
 
    ```
-   **N. <theme name>** — <1-2 sentences: what changed and why it mattered> <2-5 key PR links>
+   **N. <consequence + number>** — <the metric>
+   <one sentence of why>. 涉及 N 个 PR。[#a](url) · [#b](url)
    ```
+
+   Line 1 is the user-visible consequence or measured number. Line 2 is the cause plus 2–5 key PR links. A third line is a failure. A paragraph theme is a failure.
 
    Rules:
 
    - Order by significance. Not chronology, not repo, not PR count.
    - Lead with the **user-visible consequence or the measured number**, not the refactor's name — "按发送没反应"、"冷启动 TTFB 1369ms"、"非英文系统首启显示英文" beat "重构了 router 层".
    - Synthesize from PR bodies (`prs_merged[].body` is collected for this). A theme that only restates PR titles has failed.
-   - Each PR belongs to at most one theme. PRs that fit no theme simply do not appear here — 仓库汇总 still records them.
+   - Each PR belongs to at most one theme. PRs that fit no theme simply do not appear here.
    - Do **not** pad to reach 6. Three real threads beat six manufactured ones. If a "theme" has one PR under it, it is not a theme.
    - Mention the theme's PR count when it is large ("涉及 5 个 PR") — that is the part that reads as a week's work.
 
-3. **二、仓库汇总** (Per-Repo Breakdown) — every merged PR and loose commit, grouped by repository, as compact one-line bullets:
+3. **二、仓库汇总** (Per-Repo Digest) — **not a dump, not a second 要点.** Every merged PR and loose commit as a bullet is forbidden.
+
+   Repos with `stats.by_repo[].prs >= 2` get their own heading, in `stats.by_repo` order:
 
    ```
-   - `<raw PR title>` [#<num>](url)
+   ### owner/repo *(18 PRs)*
+
+   这周主要在收 SPA 冷启动，顺手修了非英文首启。
+
+   - `fix: sidebar file highlight` [#18916](url)
    ```
 
-   This is the **traceability index**, not prose — where a reader goes to confirm something shipped. Head each repo with `### <owner/repo> *(N commits)*` (the `*(N commits)*` suffix is parsed by `render_html.py` into a count badge) plus one framing sentence about what that repo saw this week. Do not restate the 要点 prose here.
+   - `N` comes from `stats.by_repo[].prs`. Copy it.
+   - One framing sentence in `output.language`, distilled from **PR bodies**. Do not restate 要点 prose.
+   - Bullets are **incremental**: a PR already linked in 要点 does **not** appear here. Add at most 0–2 notable PRs that did not make a theme, chosen by reading `prs_merged[].body`. Zero bullets is correct when 要点 already covered the repo.
+   - Title / commit message is not enough to choose a bullet. Noise (i18n / lockfile / formatting / Release PR) may increment `stats` but must not be a bullet.
+   - Raw titles stay verbatim in backticks; link text is the PR number.
+
+   Repos with `prs <= 1` (including loose-commit-only, `*(0 PRs)*`) fold into a single `### 其他` — no own heading:
+
+   ```
+   ### 其他
+
+   - `owner/small` *(1 PR)* — 一句概括
+   - `owner/push-only` *(0 PRs)* — 仅有 N 次直接 push：一句在干什么
+   ```
+
+   Loose commits are never listed (no SHA, no “and 12 other commits”).
+
+   Hard bans: do not list every commit/PR “for traceability”; do not re-list 要点 PRs “as an index”; do not give a 1-PR repo its own `###`; do not treat a commit message as sufficient to judge importance.
 
 4. **三、未合并 / 跟进** (Follow-ups) — closed-but-unmerged PRs needing reopen, open PRs, assigned issues still open, stale work, Linear issues without PRs.
 
@@ -459,8 +503,9 @@ scripts/render_html.py \
   the header paragraph (`**周期**` / `**作者**` / `**仓库**`) plus the
   leading blockquote for the summary callout.
 - `--json` (optional) — `collect.py` JSON output. When provided, meta grid
-  and activity-heat stats are computed from structured data instead of
-  scraping the markdown. Prefer this when available.
+  and type-mix charts are computed from `stats` (or re-derived from
+  `github.prs_merged` via `pr_stats.build_stats` if `stats` is missing).
+  Prefer `--json` when available. No JSON / 0 merged PRs → no chart appendix.
 
 **What the script does**
 
@@ -472,7 +517,7 @@ scripts/render_html.py \
    - drop stray top-level `<hr>`
    - convert `> [!kind]` blockquotes into `.callout.<kind>` divs
    - wrap each repo `<h3>` inside the「仓库汇总」section in `<details>`
-     (first open) with a `copy` button; the `*(N commits)*` suffix
+     (first open) with a `copy` button; the `*(N PRs)*` suffix
      becomes the right-aligned count badge
    - wrap each `<h2>` + its following siblings in `<section id=slug>`
    - scan every `<li>` for a conventional-commit prefix in any `<code>`
