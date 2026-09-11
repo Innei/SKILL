@@ -1,0 +1,17 @@
+[
+  {
+    "id": "glass-fusion",
+    "behavior": "聊天输入框融合后共用一块玻璃，Plus 随按压同步缩放，展开时不出现独立圆形阴影。",
+    "category": "输入框交互",
+    "cases": ["composer-glass", "composer-glass-chat"],
+    "requiredEvidence": ["screenshot", "video", "dom_snapshot"]
+  },
+  {
+    "id": "plus-hit-target",
+    "behavior": "融合态下的 Plus 仍保有 44 pt 可点区域，且不因玻璃展开而位移。",
+    "category": "输入框交互",
+    "cases": ["composer-glass"],
+    "requiredEvidence": ["dom_snapshot", "text"],
+    "verifier": "program"
+  }
+]

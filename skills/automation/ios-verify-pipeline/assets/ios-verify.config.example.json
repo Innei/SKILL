@@ -1,0 +1,119 @@
+{
+  "version": 1,
+  "app": {
+    "workspace": "ios/App.xcworkspace",
+    "scheme": "App",
+    "configuration": "Debug",
+    "bundleId": "app.example.app",
+    "derivedData": "/tmp/app-build",
+    "buildCommand": [
+      "xcodebuild",
+      "-workspace",
+      "ios/App.xcworkspace",
+      "-scheme",
+      "App",
+      "-configuration",
+      "Debug",
+      "-sdk",
+      "iphonesimulator",
+      "-destination",
+      "id={udid}",
+      "-derivedDataPath",
+      "/tmp/app-build",
+      "build"
+    ],
+    "productPath": "Build/Products/Debug-iphonesimulator/App.app"
+  },
+  "pool": {
+    "namePattern": "App * Verify",
+    "deviceType": "iPhone-17-Pro",
+    "runtime": "iOS-26-5",
+    "reuse": true
+  },
+  "server": {
+    "command": ["pnpm", "start"],
+    "port": 8097,
+    "env": { "EXPO_PUBLIC_UI_VERIFY": "1" },
+    "readyLog": "Metro waiting on",
+    "readyPort": 8097
+  },
+  "launch": {
+    "args": ["--ui-verify"],
+    "sceneArg": "--scene={scene}",
+    "url": "http://127.0.0.1:{port}?disableOnboarding=1",
+    "reset": "globalThis.__verifyReset()",
+    "firstReadyTimeout": 180
+  },
+  "matrix": {
+    "appearances": ["light", "dark"],
+    "languages": ["en"],
+    "contentSize": "large",
+    "systemLanguage": "en_US"
+  },
+  "evidence": {
+    "video": true,
+    "screenshots": ["before", "after", "failure"],
+    "axTree": true,
+    "output": ".artifacts/verify"
+  },
+  "batches": {
+    "pages": ["settings"],
+    "send": ["composer-glass", "composer-glass-chat", "send-failure"],
+    "chat": ["streaming"]
+  },
+  "cases": [
+    {
+      "id": "settings",
+      "batch": "pages",
+      "scene": "settings",
+      "ready": "settings-editor",
+      "script": "cases/settings.py",
+      "requiredEvidence": ["screenshot", "dom_snapshot"],
+      "timeout": 180,
+      "appLifecycle": "launch"
+    },
+    {
+      "id": "composer-glass",
+      "batch": "send",
+      "scene": "composerGlass",
+      "ready": "create-session-input",
+      "script": "cases/composer_glass.py",
+      "requiredEvidence": ["screenshot", "video", "dom_snapshot", "text"],
+      "timeout": 180,
+      "appLifecycle": "reset"
+    },
+    {
+      "id": "composer-glass-chat",
+      "batch": "send",
+      "scene": "chatGlass",
+      "ready": "session-input",
+      "script": "cases/composer_glass.py",
+      "requiredEvidence": ["screenshot", "video"],
+      "timeout": 180,
+      "appLifecycle": "reset"
+    },
+    {
+      "id": "send-failure",
+      "batch": "send",
+      "scene": "sendFailure",
+      "ready": "send-status",
+      "script": "cases/send_failure.py",
+      "requiredEvidence": ["screenshot", "video", "text"],
+      "timeout": 180,
+      "appLifecycle": "reset"
+    },
+    {
+      "id": "streaming",
+      "batch": "chat",
+      "scene": "chatStreaming",
+      "ready": "session-input",
+      "steps": [
+        { "action": "wait", "id": "stream-token", "timeout": 20 },
+        { "action": "capture", "name": "mid-stream" }
+      ],
+      "requiredEvidence": ["screenshot", "video"],
+      "timeout": 240,
+      "appLifecycle": "launch"
+    }
+  ]
+}
