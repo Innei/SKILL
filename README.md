@@ -42,6 +42,7 @@ SKILL/
 | Skill | Purpose |
 | ----- | ------- |
 | [`ios-verify-pipeline`](skills/automation/ios-verify-pipeline/SKILL.md) | Build a repeatable iOS visual/functional suite: Debug scenes, AXe-driven cases, per-case evidence, and rounds a reviewer accepts item by item |
+| [`profiling-electron-startup`](skills/automation/profiling-electron-startup/SKILL.md) | Segment an Electron app's launch (native / main bundle / window / renderer) with instrumented entry, CPU profile and startup trace, then apply only the levers whose segment is big |
 | [`react-rerender-audit`](skills/automation/react-rerender-audit/SKILL.md) | Measure React re-render counts over CDP, name the exact hook causing them, fix by lowering state, lock with a Profiler test |
 | [`session-handoff`](skills/automation/session-handoff/SKILL.md) | Produce a self-contained handoff prompt for another agent when delegating continued work |
 | [`session-to-skill-and-blog`](skills/automation/session-to-skill-and-blog/SKILL.md) | Classify a completed engineering session into a narrative blog, zero or more reusable skills, and project-local documentation |
