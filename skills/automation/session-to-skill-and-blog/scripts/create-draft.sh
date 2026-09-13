@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Create a native draft entity on mx-space from a LiteXML envelope, mark it
 # as AI-written (aiGen=2), optionally attach one or more skill snippets via
-# meta.skillIds, open the admin draft editor for Innei to preview, and emit
+# meta.skillIds, open the admin draft editor for the user to preview, and emit
 # only { ok, id }. The draft is invisible on the site until
 # `mxs draft publish <id>` — no post exists yet.
 #

@@ -94,7 +94,7 @@ Discipline still applies: one widget that nails the core lesson beats three
 gimmicks; every widget must come from the catalog (below); and a widget
 that merely *displays* without meaningful input is a figure wearing a
 costume — use `<img>`/`<excalidraw>` instead. When the catalog lacks the
-right widget for a scenario above, say so to Innei — that is the signal to
+right widget for a scenario above, say so to the user — that is the signal to
 commission a new cataloged component (start from
 `widget-template/template.mjs` + `widget-template/DESIGN.md`), not to force
 a static workaround silently.
@@ -116,7 +116,7 @@ curl -fsS "${MXS_API_URL}/s/dynamic-widgets-catalog?_t=$(date +%s)"
   "Embedded interactive components".
 - 404 / empty → no widgets deployed. Do **not** emit `<dynamic>`; fall back
   to `<poll>` (votes), `<excalidraw>` (diagrams), or `<video>` (demos), and
-  mention the gap to Innei.
+  mention the gap to the user.
 - Never invent, guess, or adapt a component URL.
 
 ## Quantity discipline

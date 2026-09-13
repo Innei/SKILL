@@ -102,7 +102,7 @@ holds the body together.
 | ----- | -------- | --------------- |
 | `pattern` | The session yields reusable boundary judgments or design rules | One transferable judgment per core section; session details serve as evidence |
 | `process` | The investigation sequence itself teaches the reader something | Decisions that changed the next action: symptom → evidence → fix → why |
-| `system` | The subject is a tool, workflow, format, or system Innei owns | Design intent, major decisions, components, and operational consequences |
+| `system` | The subject is a tool, workflow, format, or system the site owner owns | Design intent, major decisions, components, and operational consequences |
 
 Selection rule:
 
@@ -117,7 +117,7 @@ Selection rule:
    transferable principle). If you catch yourself writing a chronological
    transcript inside a `pattern` post, choose `process` or extract the pattern.
 3. **Choose `system` when design ownership is the point.** Use it when the
-   reader needs to understand why an Innei-owned system has its present shape.
+   reader needs to understand why a site-owner-owned system has its present shape.
 
 ## Derive the title and slug from the reading contract
 
@@ -189,8 +189,8 @@ the spine. Do not change what "I" refers to inside the post.
 
 | Narrator | Use when | Attribution rule |
 | -------- | -------- | ---------------- |
-| `agent` first-person | The agent performed the investigation and its decisions are central | "I" means the agent; name Innei's requests and design decisions explicitly |
-| `site-owner` first-person | Innei owns the system or made the design decisions | "I" means Innei; describe agent activity as "an agent run" or in third person |
+| `agent` first-person | The agent performed the investigation and its decisions are central | "I" means the agent; name the site owner's requests and design decisions explicitly |
+| `site-owner` first-person | The site owner owns the system or made the design decisions | "I" means the site owner; describe agent activity as "an agent run" or in third person |
 | `neutral` | A pattern matters more than personal chronology | Avoid "I"; name the actor only when ownership affects the claim |
 
 The spine and narrator are independent. A `pattern` post may use any of the
@@ -329,7 +329,7 @@ using the *same* internal shape are a machine fingerprint — vary or merge.
 
 ### What `pattern` deliberately removes
 
-- Chronological "Innei said X, I said Y" exchanges. Quote at most a single
+- Chronological "the user said X, I said Y" exchanges. Quote at most a single
   short line of someone else's pushback when the quote *is* the pattern
   (e.g. "why await?" landing the "waiting is not serial" judgment). One per
   section is already a lot.
@@ -365,7 +365,7 @@ state the final boundary with its evidence.
 
 Open with the system's concrete purpose and constraint. Organize the body by
 major design decisions or components. Explain intent before mechanism, then
-show the operational consequence. Attribute Innei's design work to Innei even
+show the operational consequence. Attribute the site owner's design work to them even
 when an agent run supplied the failure evidence.
 
 ## Endings

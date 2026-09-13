@@ -2,7 +2,7 @@
 name: session-to-skill-and-blog
 description: >
   Convert a completed engineering session into a narrative blog and zero or
-  more reusable operational skills. Use when Innei explicitly asks to
+  more reusable operational skills. Use when the user explicitly asks to
   productize, document, or publish a finished session ("写成 skill 再写一篇
   blog", "沉淀一下这次的折腾", "productize this session", or "publish this as
   a skill and a writeup"). Classify project-local facts separately.
@@ -37,7 +37,7 @@ actual work:
 | [`references/node-usage.md`](./references/node-usage.md) | Before using any extension node — deletion test, escalation ladder, catalog rule. |
 | [`references/visuals.md`](./references/visuals.md) | When prose creates a visual-explanation question, or when uploading image assets. |
 | [`references/editorial-models.md`](./references/editorial-models.md) | Only when revising the editorial policy — primary-source research and derived principles. |
-| [`references/publish-flow.md`](./references/publish-flow.md) | When previewing / creating / editing / publishing the post. |
+| [`references/publish-flow.md`](./references/publish-flow.md) | When authoring-reviewing / creating / editing / publishing the post. |
 | [`references/widget-template/`](./references/widget-template/DESIGN.md) | When authoring a new `<dynamic>` widget. |
 | `references/envelope.template.xml` | Copy as the post envelope before pasting the LiteXML body. |
 | `no-ai-slop` (via `load-no-ai-slop.sh`) | After the draft is written, before publishing — detect candidates, revise manually, rerun. |
@@ -55,8 +55,8 @@ For LiteXML tag syntax itself, load the litexml-authoring skill (fresh via
 
 Missing key → fallback to `~/git/innei-repo/SKILL`.
 Domains: `infrastructure` / `automation` / `writing` / `research` / `content`.
-Prereqs once per machine: `npm i -g @mx-space/cli` (Node ≥ 22, needs the
-`draft` command group — check `mxs draft --help`); `mxs auth login`.
+Prereqs once per machine: `npm i -g @mx-space/cli` (Node ≥ 22, ≥ 0.16.0 —
+check `mxs draft --help` and `mxs author --help`); `mxs auth login`.
 
 ## Scripts
 
@@ -125,7 +125,7 @@ Ask in Chinese. Map the answers as follows; do not invent extra questions.
    | Option | Record as | Meaning |
    | ------ | --------- | ------- |
    | Agent 第一人称 | `agent` | 「我」是 agent |
-   | 站长第一人称 | `site-owner` | 「我」是 Innei |
+   | 站长第一人称 | `site-owner` | 「我」是站长 |
    | 中性叙述 | `neutral` | 不用「我」 |
    | 看材料再定 | `defer` | Choose after the spine |
 
@@ -293,7 +293,7 @@ SLOP_CACHE=$(bash "$S/load-no-ai-slop.sh") || {
 # rerun the sweep, and leave no unresolved finding. Never auto-rewrite.
 ```
 
-Medium: default LiteXML (for Innei's blog).
+Medium: default LiteXML (for the site owner's blog).
 
 ```bash
 LITEXML_CACHE=$(bash "$S/load-litexml.sh")
@@ -310,7 +310,8 @@ view. A rejected skill candidate may still supply valuable narrative material.
 ### [6] Publish via `mxs`
 
 Follow [`publish-flow.md`](./references/publish-flow.md) end to end —
-including the post-`--file` metadata re-attach and the post-publish metadata
+starting with `mxs author` (stop, wait for the user, read `<file>.diff`),
+then the post-`--file` metadata re-attach and the post-publish metadata
 verification. Pass zero or more `--skill-id` arguments according to the
 accepted and successfully pushed skills. Paste the final URL back into the
 originating session.
@@ -339,7 +340,7 @@ Publish, voice, and node rules live in those files.
 | Hardcoding the SKILL repo path in shell | `bash "$S/resolve-skill-repo.sh"`. |
 | Locating `$S` via `~/.claude/skills/...` only | Use the search loop above. |
 | Stale local `litexml-authoring` / `no-ai-slop` clone | `load-litexml.sh` / `load-no-ai-slop.sh` refresh via degit. If no-ai-slop cannot load, skip and say so. |
-| Skill written in Chinese | Skill in English. Blog in Innei's chosen language (default Chinese). |
+| Skill written in Chinese | Skill in English. Blog in the user's chosen language (default Chinese). |
 | Skipping `push-skill.sh` and embedding only the GitHub URL | The install card reads `meta.skillIds`. Without `--skill-id`, it never renders. |
 | Form / narrator / voice / slop mistakes | `writing-style.md`. |
 | Title states a lesson but drops the defining technology | Restore the identity anchor, then qualify it with the earned claim. |

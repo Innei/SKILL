@@ -1,22 +1,37 @@
-# Publish flow — preview, draft, publish, stage/apply
+# Publish flow — author, draft, publish, stage/apply
 
 This file is the single home for publish correctness. Do not improvise
 meta, state, or category flags from memory.
 
-## Preview
+## Author (local review before any server call)
 
 ```bash
-mxs preview /tmp/blog/article.xml
+mxs author /tmp/blog/article.xml          # prints URL, opens the admin editor
+mxs author --no-open /tmp/blog/article.xml
 ```
 
-`mxs preview` is envelope-aware: it strips the `<mxpost>` / `<mxnote>`
-wrapper, auto-detects `--variant`, and opens the HTML in the system browser
-by default. `--print` dumps to stdout; `--save <path>` writes a file without
-opening.
+Requires `mxs` ≥ 0.16.0 (`mxs author --help`; `mxs preview` was removed).
+`mxs author` serves the admin rich editor for the envelope without
+contacting `mx-core`. Only `<content>` is editable; meta stays byte-stable.
+`<file>` is required — stdin is not accepted. Every save overwrites the file
+and `<file>.diff` (current body vs the body frozen at process start).
 
-Keep authoring sources `<doc>`-wrapped when previewing bare fragments —
+Agent loop:
+
+1. Write the envelope file, start `mxs author <file>` in the background,
+   tell the user the URL.
+2. **Stop.** Do not poll, do not auto-continue.
+3. When the user says done, read `<file>.diff` to learn the edits. Do not
+   rescan the full article unless the diff is missing or unreadable.
+4. Continue with the no-ai-slop sweep and the draft steps below using the
+   updated file. Do not rewrite `<file>` from another process while
+   `mxs author` is running.
+
+Keep authoring sources `<doc>`-wrapped when editing bare fragments —
 inter-block whitespace otherwise becomes root-level text nodes (Lexical
-error #282). mxs wraps server-side, so the published post is unaffected.
+error #282). A save rewrites `<content>` as bare block tags (the `<doc>`
+wrapper is dropped); that is fine for `mxs draft create`, which wraps
+server-side.
 
 Never pass a bare LiteXML body to `mxs --file`. Wrap it in
 `references/envelope.template.xml` first.
@@ -46,7 +61,7 @@ bash "$S/create-draft.sh" /tmp/blog/article.xml --skill-id "$SKILL_ID"
 # With no accepted skill, omit every --skill-id argument:
 # bash "$S/create-draft.sh" /tmp/blog/article.xml
 # → { ok: true, id: <draftId> } — capture the id for the next steps.
-# Innei previews in the admin draft editor opened by --open.
+# The user reviews in the admin draft editor opened by --open.
 ```
 
 `create-draft.sh` runs `mxs draft create` with `aiGen=2` and `--open`.
@@ -56,7 +71,7 @@ skills. Without those arguments it writes only `meta.aiGen`. Never hand-write
 the initial metadata payload.
 
 Creating a new category requires an explicit second confirmation from
-Innei before `mxs category create`.
+the user before `mxs category create`.
 
 Legacy fallback (installed `mxs` lacks the `draft` group — check
 `mxs draft --help`): `mxs post create --file <xml> --state draft`,
@@ -91,7 +106,7 @@ mxs draft get <draftId>
 
 Skip the re-attach only when no file update ran after create.
 
-## Publish (after Innei approves)
+## Publish (after the user approves)
 
 ```bash
 mxs draft publish <draftId>
@@ -101,7 +116,7 @@ One step: creates the live post from the draft (`POST /posts` with
 `draftId`), links the draft to it, and marks the draft version as
 published. The draft and its history are retained.
 
-Publish creates the live post immediately. Only run it after Innei
+Publish creates the live post immediately. Only run it after the user
 approves the admin preview.
 
 Then **always** verify the live post — do not assume `draft publish`
@@ -178,12 +193,12 @@ A partial title-and-slug update must preserve `meta.aiGen`, every existing
 ## Edit a published post (stage/apply)
 
 Prefer stage/apply when the installed `mxs` supports it
-(`mxs post stage --help`) — the live post stays untouched until Innei
+(`mxs post stage --help`) — the live post stays untouched until the user
 confirms:
 
 ```bash
 mxs post stage <slug> --file /tmp/blog/article.xml   # readers see nothing
-# Innei reviews (local preview / admin), then approves:
+# The user reviews (mxs author / admin), then approves:
 mxs post apply <slug>                                # the confirm step
 ```
 
@@ -206,13 +221,13 @@ the originating session as the asset-ization receipt.
 ## Publish checklist
 
 - [ ] `mxs auth whoami` returned the expected user.
-- [ ] `<category>` reuses an existing slug, or Innei explicitly approved a new one.
+- [ ] `<category>` reuses an existing slug, or the user explicitly approved a new one.
 - [ ] Envelope used; no hand-written `<summary>`.
 - [ ] Title retains the defining technical identity; slug uses stable ASCII kebab-case terms and was checked for collision.
-- [ ] Previewed a `<doc>`-wrapped source (`mxs preview`), not a haklex worktree `pnpm litexml`.
+- [ ] Reviewed via `mxs author` on a `<doc>`-wrapped source (not a haklex worktree `pnpm litexml`); edits read from `<file>.diff`.
 - [ ] Native draft entity (`create-draft.sh` → `{ ok, id }`), not a draft-state post.
 - [ ] After the last `draft update --file`, meta re-attached and confirmed via `draft get`.
-- [ ] `mxs draft publish <draftId>` ran only after Innei approved the admin preview.
+- [ ] `mxs draft publish <draftId>` ran only after the user approved the admin preview.
 - [ ] Live `meta.aiGen` verified; `meta.skillIds` matches the accepted skills and is absent or empty when there are none.
 - [ ] After a slug change, the new lookup succeeds and the old public path redirects.
 - [ ] Every attached skill card renders on the live page, or the mx-core trade-off was explicitly accepted.
