@@ -73,7 +73,7 @@ the history the human can restore later. Beside it, `session.json` carries
 state across agent sessions; update it whenever a field changes:
 
 ```json
-{ "narrator": "site-owner", "language": "zh", "aiGen": [8], "draftId": null }
+{ "narrator": "site-owner", "language": "zh", "aiGen": [8], "draftId": null, "paywall": null }
 ```
 
 `aiGen` accumulates what you actually contributed (see [4]); `draftId` is set
@@ -115,9 +115,13 @@ For every request while the editor runs (a message with several requests —
 new title *and* a smoother paragraph — runs this loop once per request):
 
 1. Re-read the file. The browser has been autosaving; anything in context is stale.
-2. Locate the target by quoting its heading or paragraph text back. If the
-   request does not pin a spot (e.g. which paragraph a diagram follows), ask
-   in one line before editing.
+2. Locate the target by quoting its heading or paragraph text back. When the
+   request points at the human's selection ("选中的这段", "这里", "this bit"),
+   read `<file>.selection.json` first and match `blocks[].id` to the `id`
+   attributes in the file; it keeps the last selection after the editor loses
+   focus, so check `updatedAt` is recent. If the file is missing (older `mxs`)
+   or the request still does not pin a spot (e.g. which paragraph a diagram
+   follows), ask in one line before editing.
 3. Load only the reference the request needs:
 
    | Request | Load |
@@ -126,6 +130,7 @@ new title *and* a smoother paragraph — runs this loop once per request):
    | Rewrite, tighten, continue a passage | `$REFS/writing-style.md` with the recorded narrator |
    | Image / screenshot | `$REFS/visuals.md` › attachments (`mxs file upload`, `image-meta.mjs`) |
    | Interactive widget or special node | `$REFS/node-usage.md` |
+   | Numbers compared before/after (timings, sizes) | `before-after-bars` entry in the `dynamic-widgets-catalog` snippet (`mxs snippet get dynamic-widgets-catalog`); insert a `<dynamic>` node with its exact `url` and props instead of a table |
    | Title, slug, tags, category | edit `<meta>` in place; the server adopts your envelope and later autosaves keep it (stdout: `+0 ~0 -0 blocks`) |
 
 4. Apply it with **one in-place edit** (Claude Code `Edit`, Codex `apply_patch`)
@@ -167,8 +172,15 @@ has a `draftId`, skip to step 4 with the `aiGen` already in `session.json`):
      `bash "$S/create-draft.sh" "$DRAFTS/<slug>/article.xml" --ai-gen '<value>'`,
      and store the returned id in `session.json`;
    - `draftId` exists (the human kept writing after a draft was made) →
-     `mxs draft update <draftId> --file …`, then re-attach meta with the
-     confirmed `aiGen`, not `2`.
+     `mxs draft update <draftId> --file …`, then re-attach the whole meta:
+     the confirmed `aiGen` (not `2`) plus any `paywall` recorded in
+     `session.json`, e.g. `--meta '{"aiGen":[0,8],"paywall":{"previewBlocks":37}}'`.
+   - Paywall position ("设置付费墙位置") → `meta.paywall.previewBlocks` counts
+     top-level blocks shown free. Count root children of the server draft
+     (`mxs draft get <id> --json`), offer section boundaries as options, set it
+     with `mxs draft update <id> --meta` (keeping `aiGen`), and store it in
+     `session.json` › `paywall`. `isPremium` has no CLI flag; the human toggles
+     it in the admin premium panel.
    Keep the editor running; later browser edits reach the server only through
    this step. Publish only after the human approves the draft preview.
 
