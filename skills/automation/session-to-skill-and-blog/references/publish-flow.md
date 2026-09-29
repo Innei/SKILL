@@ -13,19 +13,26 @@ mxs author --no-open /tmp/blog/article.xml
 Requires `mxs` ≥ 0.16.0 (`mxs author --help`; `mxs preview` was removed).
 `mxs author` serves the admin rich editor for the envelope without
 contacting `mx-core`. Only `<content>` is editable; meta stays byte-stable.
-`<file>` is required — stdin is not accepted. Every save overwrites the file
-and `<file>.diff` (current body vs the body frozen at process start).
+`<file>` is required — stdin is not accepted. The editor and the file stay in
+sync through a Loro CRDT: browser edits autosave to `<file>` (and
+`<file>.diff`, current body vs the body at process start), and in-place agent
+edits to `<file>` are merged three-way and streamed into the open editor.
+History persists in `<file>.loro`. `mxs skill get commands-author` is the
+authoritative contract.
 
 Agent loop:
 
 1. Write the envelope file, start `mxs author <file>` in the background,
    tell the user the URL.
 2. **Stop.** Do not poll, do not auto-continue.
-3. When the user says done, read `<file>.diff` to learn the edits. Do not
+3. If the user asks for changes while it runs, re-read `<file>` and change
+   only the requested blocks with one in-place edit (`Edit` / `apply_patch`).
+   Never `Write` the whole file from an old copy. Stdout prints
+   `agent edit merged` or `agent edit rejected`; then stop again.
+4. When the user says done, read `<file>.diff` to learn the edits. Do not
    rescan the full article unless the diff is missing or unreadable.
-4. Continue with the no-ai-slop sweep and the draft steps below using the
-   updated file. Do not rewrite `<file>` from another process while
-   `mxs author` is running.
+5. Continue with the no-ai-slop sweep and the draft steps below using the
+   updated file.
 
 Keep authoring sources `<doc>`-wrapped when editing bare fragments —
 inter-block whitespace otherwise becomes root-level text nodes (Lexical
@@ -64,7 +71,8 @@ bash "$S/create-draft.sh" /tmp/blog/article.xml --skill-id "$SKILL_ID"
 # The user reviews in the admin draft editor opened by --open.
 ```
 
-`create-draft.sh` runs `mxs draft create` with `aiGen=2` and `--open`.
+`create-draft.sh` runs `mxs draft create` with `aiGen=2` (override with
+`--ai-gen '<json>'`, e.g. `'[0,8]'` for a co-written post) and `--open`.
 With one or more `--skill-id <id>` args it jq-assembles `meta.skillIds`
 so the admin SkillPicker / public article card list resolve the attached
 skills. Without those arguments it writes only `meta.aiGen`. Never hand-write
@@ -130,7 +138,8 @@ mxs --version
 mxs post get <slug> --output json
 ```
 
-Always confirm `meta.aiGen == 2`. When skills were attached, confirm
+Always confirm `meta.aiGen` equals the value passed to `create-draft.sh`
+(`2` unless `--ai-gen` was given). When skills were attached, confirm
 `meta.skillIds` is the exact id list (camelCase, not `skill_ids`) and that the
 skill cards render on the live page. With no accepted skill, confirm
 `meta.skillIds` is absent or empty. Repair the metadata when it differs:

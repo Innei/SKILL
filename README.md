@@ -94,6 +94,7 @@ SKILL/
 
 | Skill | Purpose |
 | ----- | ------- |
+| [`co-write-blog-post`](skills/writing/co-write-blog-post/SKILL.md) | Co-write a blog post from a blank page with the agent in the Loro-synced mxs author editor; agent edits stream in live |
 | [`generate-design-md`](skills/writing/generate-design-md/SKILL.md) | Produce `DESIGN.md` for a brand/site from live CSS and tokens (awesome-design-md format) |
 | [`holding-analytical-judgment`](skills/writing/holding-analytical-judgment/SKILL.md) | Keep analysis grounded in evidence; do not flip conclusions for mood alone (code review, diagnosis, post-mortems) |
 
