@@ -34,11 +34,13 @@ Compose product marketing stills from **real app screenshots** inside official A
 | Recipe | When | Status |
 | --- | --- | --- |
 | `dual-device-hero` | iPhone + Mac window, site hero / 宣传图 | implement |
+| `ios-hero` | iPhone standalone / multi-device showcase (1–3 devices) | implement |
+| `pad-phone-hero` | iPad + iPhone, site hero / README | implement |
 | `app-store-set` | App Store screenshot set | stub — say so, do not fake it |
 | `og-card` | 1200×630 share card | stub |
 | `changelog-card` | compact update visual | stub |
-
 Default composition for `dual-device-hero`: 4800×2700, opaque device group centered on the canvas, MacBook Pro 14 Space Black slightly left of that group, iPhone 17 Pro Silver overlapping lower right.
+Default composition for `pad-phone-hero`: 4800×2700, iPad Pro 13 (M5) Silver landscape slightly left, iPhone 17 Pro Silver overlapping lower right.
 
 ## Workflow
 
@@ -68,7 +70,26 @@ uv run "$HERE/scripts/compose.py" dual-device-hero \
   --phone "$PHONE" --mac "$MAC" --bg "$BG" --out "$OUT"
 ```
 
-`--iphone-color silver|deep-blue|cosmic-orange` and `--mac-color space-black|silver` select cached official bezels.
+`--iphone-color silver|deep-blue|cosmic-orange`, `--mac-color space-black|silver`, and `--ipad-color silver|space-black` select cached official bezels.
+
+iPad + iPhone:
+
+```bash
+uv run "$HERE/scripts/compose.py" pad-phone-hero \
+  --phone "$PHONE" --ipad "$IPAD" --bg "$BG" --out "$OUT"
+```
+
+`--ipad` is a landscape Simulator framebuffer (`xcrun simctl io <udid> screenshot`). iPad Pro 13 (M5) landscape is **2752×2064**.
+
+iOS-only showcase (single iPhone or triptych):
+
+```bash
+uv run "$HERE/scripts/compose.py" ios-hero \
+  --phone "$PHONE" \
+  [--phone-left "$PHONE_LEFT"] \
+  [--phone-right "$PHONE_RIGHT"] \
+  [--bg "$BG"] --out "$OUT"
+```
 
 ## Background
 
@@ -101,7 +122,7 @@ UDID=$(xcrun simctl list devices booted | awk -F '[()]' '/Booted/{print $2; exit
 xcrun simctl io "$UDID" screenshot phone.png
 ```
 
-Accept: a rectangle at the device's native screenshot size (iPhone 17 Pro: **1206×2622**). The status bar and iOS's black island pill are framebuffer pixels; the official bezel supplies the hardware island and camera.
+Accept: a rectangle at the device's native screenshot size (iPhone 17 Pro: **1206×2622**; iPad Pro 13 M5 landscape: **2752×2064**). The status bar and iOS's black island pill are framebuffer pixels; the official bezel supplies the hardware island and camera. iPad has no Dynamic Island; do not feed a portrait iPad shot into the landscape bezel.
 
 Reject and recapture:
 
@@ -116,6 +137,7 @@ The workflow's "real window capture" is **Mac only**.
 | Flag | Meaning |
 | --- | --- |
 | `--phone` | Simulator framebuffer PNG from `simctl io screenshot` (iPhone 17 Pro: 1206×2622) |
+| `--ipad` | Simulator framebuffer PNG from `simctl io screenshot` (iPad Pro 13 M5 landscape: 2752×2064) |
 | `--mac` | real app/Safari window PNG with native window shadow; never a full desktop capture |
 | `--mac-wallpaper` | optional public wallpaper override; otherwise use the built-in privacy-safe wallpaper layer |
 | `--mac-menu-bar` | optional transparent official Menu Bar PNG override; otherwise use the cached macOS 27 UI Kit layer |

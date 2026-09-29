@@ -10,8 +10,11 @@ import tempfile
 
 from compose import (
     CANVAS,
+    PHONE_X_IN_PAD,
+    PHONE_Y_IN_PAD,
     dual_hero_positions,
     compose_mac_desktop,
+    hide_framebuffer_island,
     load_bg,
     opaque_bbox,
     scale_to_height,
@@ -83,6 +86,36 @@ class DualHeroPositionTests(unittest.TestCase):
         self.assertGreater(phone_box[3], mac_box[3])
 
 
+class PadPhonePositionTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.canvas = CANVAS
+        self.pad = _device((3180, 2438), (32, 24, 3144, 2408))
+        self.phone = _device((821, 1693), (10, 13, 811, 1679))
+
+    def _placed(self):
+        pad_pos, phone_pos = dual_hero_positions(
+            self.canvas, self.pad, self.phone, PHONE_X_IN_PAD, PHONE_Y_IN_PAD
+        )
+        pad_box = _offset(opaque_bbox(self.pad), pad_pos)
+        phone_box = _offset(opaque_bbox(self.phone), phone_pos)
+        union = _union(pad_box, phone_box)
+        return pad_pos, phone_pos, pad_box, phone_box, union
+
+    def test_opaque_union_is_centered_on_canvas(self) -> None:
+        _, _, _, _, union = self._placed()
+        left, top, right, bottom = union
+        cw, ch = self.canvas
+        self.assertLessEqual(abs(left - (cw - right)), 1)
+        self.assertLessEqual(abs(top - (ch - bottom)), 1)
+
+    def test_phone_overlaps_lower_right_of_pad(self) -> None:
+        _, _, pad_box, phone_box, _ = self._placed()
+        self.assertLess(phone_box[0], pad_box[2])
+        self.assertGreater(phone_box[2], pad_box[2])
+        self.assertGreater(phone_box[1], pad_box[1])
+        self.assertGreater(phone_box[3], pad_box[3])
+
+
 @unittest.skipUnless(
     (CACHE / "macbook-pro-m5-14-space-black.png").is_file()
     and (CACHE / "iphone-17-pro-silver-portrait.png").is_file(),
@@ -104,6 +137,30 @@ class RealBezelLayoutTests(unittest.TestCase):
         left, top, right, bottom = union
         self.assertLessEqual(abs(left - (CANVAS[0] - right)), 1)
         self.assertLessEqual(abs(top - (CANVAS[1] - bottom)), 1)
+    def test_ios_hero_triptych_is_symmetric(self) -> None:
+        center = scale_to_height(
+            Image.open(CACHE / "iphone-17-pro-silver-portrait.png"), 2020
+        )
+        side = scale_to_height(
+            Image.open(CACHE / "iphone-17-pro-silver-portrait.png"), 1860
+        )
+        cx = (CANVAS[0] - center.width) // 2
+        gap = 120
+        lx = cx - side.width - gap
+        rx = cx + center.width + gap
+        left_margin = lx
+        right_margin = CANVAS[0] - (rx + side.width)
+        self.assertEqual(left_margin, right_margin)
+
+    def test_ios_hero_single_is_centered(self) -> None:
+        phone = scale_to_height(
+            Image.open(CACHE / "iphone-17-pro-silver-portrait.png"), 2040
+        )
+        px = (CANVAS[0] - phone.width) // 2
+        py = (CANVAS[1] - phone.height) // 2
+        self.assertLessEqual(abs(px - (CANVAS[0] - (px + phone.width))), 1)
+        self.assertLessEqual(abs(py - (CANVAS[1] - (py + phone.height))), 1)
+
 
 
 class MacDesktopCompositionTests(unittest.TestCase):
@@ -128,6 +185,24 @@ class MacDesktopCompositionTests(unittest.TestCase):
 
         self.assertEqual(out.getpixel((10, 200)), (126, 95, 69))
         self.assertEqual(out.getpixel((590, 200)), (126, 95, 69))
+
+
+class HideFramebufferIslandTests(unittest.TestCase):
+    def test_ignores_status_bar_icon_specks(self) -> None:
+        im = Image.new("RGB", (1206, 2622), (242, 242, 247))
+        for x in range(430, 780):
+            for y in range(48, 140):
+                im.putpixel((x, y), (0, 0, 0))
+        for x in range(160, 180):
+            for y in range(70, 110):
+                im.putpixel((x, y), (0, 0, 0))
+        for x in range(920, 980):
+            for y in range(60, 100):
+                im.putpixel((x, y), (8, 8, 8))
+        out = hide_framebuffer_island(im)
+        self.assertGreater(sum(out.getpixel((600, 90))) / 3, 200)
+        self.assertEqual(out.getpixel((170, 90)), (0, 0, 0))
+        self.assertEqual(out.getpixel((950, 80))[0], 8)
 
 
 class ShotPaletteTests(unittest.TestCase):

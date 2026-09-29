@@ -17,6 +17,8 @@ MACOS_UI_CACHE = Path.home() / ".cache" / "product-visuals" / "macos-ui"
 DEFAULT_MAC_MENU_BAR = MACOS_UI_CACHE / "macos-27-menu-bar.png"
 PHONE_X_IN_MAC = 0.88
 PHONE_Y_IN_MAC = 0.24
+PHONE_X_IN_PAD = 0.84
+PHONE_Y_IN_PAD = 0.40
 IPHONE_BEZELS = {
     "silver": "iphone-17-pro-silver-portrait.png",
     "deep-blue": "iphone-17-pro-deep-blue-portrait.png",
@@ -25,6 +27,10 @@ IPHONE_BEZELS = {
 MAC_BEZELS = {
     "space-black": "macbook-pro-m5-14-space-black.png",
     "silver": "macbook-pro-m5-14-silver.png",
+}
+IPAD_BEZELS = {
+    "silver": "ipad-pro-m5-13-silver-landscape.png",
+    "space-black": "ipad-pro-m5-13-space-black-landscape.png",
 }
 
 
@@ -85,6 +91,23 @@ def cover(src: Image.Image, box: tuple[int, int, int, int], top: bool = False) -
     return img.crop((left, top_off, left + tw, top_off + th))
 
 
+def _dark_column_runs(mask: np.ndarray) -> list[tuple[int, int]]:
+    occupied = mask.sum(axis=0) > 8
+    runs: list[tuple[int, int]] = []
+    i = 0
+    width = occupied.shape[0]
+    while i < width:
+        if occupied[i]:
+            j = i + 1
+            while j < width and occupied[j]:
+                j += 1
+            runs.append((i, j))
+            i = j
+        else:
+            i += 1
+    return runs
+
+
 def hide_framebuffer_island(shot: Image.Image) -> Image.Image:
     rgb = np.asarray(shot.convert("RGB")).copy()
     h, w = rgb.shape[:2]
@@ -94,18 +117,28 @@ def hide_framebuffer_island(shot: Image.Image) -> Image.Image:
     cx = w // 2
     top = min(h, max(96, h // 12))
     dark = lum[:top] < 12
-    ys, xs = np.where(dark)
-    if len(xs) < 80:
+    if int(dark.sum()) < 80:
+        return Image.fromarray(rgb)
+    min_w, max_w = w * 0.18, w * 0.55
+    island = None
+    for x0, x1 in _dark_column_runs(dark):
+        if not (min_w <= (x1 - x0) <= max_w):
+            continue
+        if abs((x0 + x1) / 2 - cx) > w * 0.08:
+            continue
+        island = (x0, x1)
+        break
+    if island is None:
+        return Image.fromarray(rgb)
+    x0, x1 = island
+    band = dark[:, x0:x1]
+    ys = np.where(band.any(axis=1))[0]
+    if len(ys) == 0:
         return Image.fromarray(rgb)
     y0, y1 = int(ys.min()), int(ys.max()) + 1
-    x0, x1 = int(xs.min()), int(xs.max()) + 1
-    if (x1 - x0) < w * 0.18 or (x1 - x0) > w * 0.55:
-        return Image.fromarray(rgb)
-    if abs((x0 + x1) / 2 - cx) > w * 0.08:
-        return Image.fromarray(rgb)
     if (y1 - y0) < 24 or (y1 - y0) > top * 0.9:
         return Image.fromarray(rgb)
-    pad = max(8, (x0) // 8)
+    pad = max(8, x0 // 8)
     sample = rgb[y0:y1, max(0, x0 - pad - 40) : max(0, x0 - 8)]
     if sample.size == 0:
         sample = rgb[y0:y1, min(w, x1 + 8) : min(w, x1 + pad + 40)]
@@ -192,15 +225,19 @@ def opaque_bbox(im: Image.Image, threshold: int = 8) -> tuple[int, int, int, int
 
 
 def dual_hero_positions(
-    canvas: tuple[int, int], mac: Image.Image, phone: Image.Image
+    canvas: tuple[int, int],
+    mac: Image.Image,
+    phone: Image.Image,
+    phone_x_in: float = PHONE_X_IN_MAC,
+    phone_y_in: float = PHONE_Y_IN_MAC,
 ) -> tuple[tuple[int, int], tuple[int, int]]:
     cw, ch = canvas
     mx0, my0, mx1, my1 = opaque_bbox(mac)
     px0, py0, px1, py1 = opaque_bbox(phone)
     mac_ow, mac_oh = mx1 - mx0, my1 - my0
     phone_pos = (
-        mx0 + int(mac_ow * PHONE_X_IN_MAC) - px0,
-        my0 + int(mac_oh * PHONE_Y_IN_MAC) - py0,
+        mx0 + int(mac_ow * phone_x_in) - px0,
+        my0 + int(mac_oh * phone_y_in) - py0,
     )
     union_l = min(mx0, phone_pos[0] + px0)
     union_t = min(my0, phone_pos[1] + py0)
@@ -402,6 +439,114 @@ def dual_device_hero(args: argparse.Namespace) -> None:
     print(args.out)
 
 
+def pad_phone_hero(args: argparse.Namespace) -> None:
+    w, h = args.width, args.height
+    sx, sy = w / CANVAS[0], h / CANVAS[1]
+    canvas = load_bg(
+        args.bg, (w, h), args.bg_dim, shots=[args.phone, args.ipad]
+    )
+    pad = scale_to_width(
+        frame_device_image(
+            clean_rgba(Image.open(args.ipad_bezel)),
+            Image.open(args.ipad).convert("RGB"),
+            top=False,
+        ),
+        int(3180 * sx),
+    )
+    phone = scale_to_height(
+        frame_device(args.iphone_bezel, args.phone, top=True), int(1680 * sy)
+    )
+    pad_pos, phone_pos = dual_hero_positions(
+        (w, h), pad, phone, PHONE_X_IN_PAD, PHONE_Y_IN_PAD
+    )
+    pad_shadow, pad_off = contact_shadow(pad, blur=74, opacity=0.34, spread=0.9)
+    phone_shadow, phone_off = contact_shadow(phone, blur=54, opacity=0.3, spread=0.82)
+    paste(canvas, pad_shadow, (pad_pos[0] + pad_off[0], pad_pos[1] + pad_off[1]))
+    paste(
+        canvas,
+        phone_shadow,
+        (phone_pos[0] + phone_off[0], phone_pos[1] + phone_off[1]),
+    )
+    paste(canvas, pad, pad_pos)
+    paste(canvas, phone, phone_pos)
+    args.out.parent.mkdir(parents=True, exist_ok=True)
+    canvas.convert("RGB").save(args.out, "PNG", optimize=True)
+    print(args.out)
+
+
+def ios_hero(args: argparse.Namespace) -> None:
+    w, h = args.width, args.height
+    sx, sy = w / CANVAS[0], h / CANVAS[1]
+    shots = [args.phone]
+    if args.phone_left:
+        shots.append(args.phone_left)
+    if args.phone_right:
+        shots.append(args.phone_right)
+    canvas = load_bg(args.bg, (w, h), args.bg_dim, shots=shots)
+
+    bezel = clean_rgba(Image.open(args.iphone_bezel))
+
+    def frame_phone(shot_path: Path) -> Image.Image:
+        shot = hide_framebuffer_island(Image.open(shot_path))
+        return frame_device_image(bezel, shot, top=True)
+
+    if args.phone_left and args.phone_right:
+        ch = int(2020 * sy)
+        sh = int(1860 * sy)
+        center_phone = scale_to_height(frame_phone(args.phone), ch)
+        left_phone = scale_to_height(frame_phone(args.phone_left), sh)
+        right_phone = scale_to_height(frame_phone(args.phone_right), sh)
+
+        cx = (w - center_phone.width) // 2
+        cy = (h - center_phone.height) // 2
+        gap = int(args.gap * sx)
+
+        lx = cx - left_phone.width - gap
+        rx = cx + center_phone.width + gap
+        ly = cy + center_phone.height - left_phone.height
+        ry = cy + center_phone.height - right_phone.height
+
+        left_shadow, left_off = contact_shadow(left_phone, blur=54, opacity=0.30, spread=0.84)
+        right_shadow, right_off = contact_shadow(right_phone, blur=54, opacity=0.30, spread=0.84)
+        center_shadow, center_off = contact_shadow(center_phone, blur=68, opacity=0.36, spread=0.88)
+
+        paste(canvas, left_shadow, (lx + left_off[0], ly + left_off[1]))
+        paste(canvas, right_shadow, (rx + right_off[0], ry + right_off[1]))
+        paste(canvas, left_phone, (lx, ly))
+        paste(canvas, right_phone, (rx, ry))
+        paste(canvas, center_shadow, (cx + center_off[0], cy + center_off[1]))
+        paste(canvas, center_phone, (cx, cy))
+    elif args.phone_left or args.phone_right:
+        secondary_shot = args.phone_left or args.phone_right
+        ph = int(1960 * sy)
+        p1 = scale_to_height(frame_phone(args.phone), ph)
+        p2 = scale_to_height(frame_phone(secondary_shot), ph)
+        gap = int(args.gap * sx)
+        total_w = p1.width + p2.width + gap
+        p1_x = (w - total_w) // 2
+        p2_x = p1_x + p1.width + gap
+        p1_y = (h - p1.height) // 2
+        p2_y = (h - p2.height) // 2
+        s1, s1_off = contact_shadow(p1, blur=60, opacity=0.32, spread=0.85)
+        s2, s2_off = contact_shadow(p2, blur=60, opacity=0.32, spread=0.85)
+        paste(canvas, s1, (p1_x + s1_off[0], p1_y + s1_off[1]))
+        paste(canvas, s2, (p2_x + s2_off[0], p2_y + s2_off[1]))
+        paste(canvas, p1, (p1_x, p1_y))
+        paste(canvas, p2, (p2_x, p2_y))
+    else:
+        ph = int(2040 * sy)
+        phone = scale_to_height(frame_phone(args.phone), ph)
+        px = (w - phone.width) // 2
+        py = (h - phone.height) // 2
+        shadow, off = contact_shadow(phone, blur=64, opacity=0.35, spread=0.86)
+        paste(canvas, shadow, (px + off[0], py + off[1]))
+        paste(canvas, phone, (px, py))
+
+    args.out.parent.mkdir(parents=True, exist_ok=True)
+    canvas.convert("RGB").save(args.out, "PNG", optimize=True)
+    print(args.out)
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="compose.py")
     sub = p.add_subparsers(dest="recipe", required=True)
@@ -421,22 +566,62 @@ def build_parser() -> argparse.ArgumentParser:
     hero.add_argument("--width", type=int, default=CANVAS[0])
     hero.add_argument("--height", type=int, default=CANVAS[1])
     hero.set_defaults(func=dual_device_hero)
+
+    ios = sub.add_parser("ios-hero")
+    ios.add_argument("--phone", type=Path, required=True)
+    ios.add_argument("--phone-left", type=Path, default=None)
+    ios.add_argument("--phone-right", type=Path, default=None)
+    ios.add_argument("--out", type=Path, required=True)
+    ios.add_argument("--bg", type=Path, default=None)
+    ios.add_argument("--bg-dim", type=float, default=1.0)
+    ios.add_argument("--gap", type=int, default=120)
+    ios.add_argument("--iphone-color", choices=IPHONE_BEZELS, default="silver")
+    ios.add_argument("--iphone-bezel", type=Path, default=None)
+    ios.add_argument("--width", type=int, default=CANVAS[0])
+    ios.add_argument("--height", type=int, default=CANVAS[1])
+    ios.set_defaults(func=ios_hero)
+
+    pad = sub.add_parser("pad-phone-hero")
+    pad.add_argument("--phone", type=Path, required=True)
+    pad.add_argument("--ipad", type=Path, required=True)
+    pad.add_argument("--out", type=Path, required=True)
+    pad.add_argument("--bg", type=Path, default=None)
+    pad.add_argument("--bg-dim", type=float, default=1.0)
+    pad.add_argument("--iphone-color", choices=IPHONE_BEZELS, default="silver")
+    pad.add_argument("--ipad-color", choices=IPAD_BEZELS, default="silver")
+    pad.add_argument("--iphone-bezel", type=Path, default=None)
+    pad.add_argument("--ipad-bezel", type=Path, default=None)
+    pad.add_argument("--width", type=int, default=CANVAS[0])
+    pad.add_argument("--height", type=int, default=CANVAS[1])
+    pad.set_defaults(func=pad_phone_hero)
     return p
 
 
 def main() -> None:
     args = build_parser().parse_args()
-    if args.recipe == "dual-device-hero":
+    if args.recipe in ("dual-device-hero", "ios-hero", "pad-phone-hero"):
         args.iphone_bezel = resolve_bezel(
             args.iphone_bezel, IPHONE_BEZELS[args.iphone_color]
         )
-        args.mac_bezel = resolve_bezel(args.mac_bezel, MAC_BEZELS[args.mac_color])
-        for label, path in (
-            ("phone", args.phone),
-            ("mac", args.mac),
-            ("mac wallpaper", args.mac_wallpaper),
-            ("mac menu bar", args.mac_menu_bar),
-        ):
+        if args.recipe == "dual-device-hero":
+            args.mac_bezel = resolve_bezel(args.mac_bezel, MAC_BEZELS[args.mac_color])
+        if args.recipe == "pad-phone-hero":
+            args.ipad_bezel = resolve_bezel(args.ipad_bezel, IPAD_BEZELS[args.ipad_color])
+        targets = [("phone", args.phone)]
+        if args.recipe == "dual-device-hero":
+            targets.extend([
+                ("mac", args.mac),
+                ("mac wallpaper", args.mac_wallpaper),
+                ("mac menu bar", args.mac_menu_bar),
+            ])
+        elif args.recipe == "ios-hero":
+            if args.phone_left:
+                targets.append(("phone left", args.phone_left))
+            if args.phone_right:
+                targets.append(("phone right", args.phone_right))
+        elif args.recipe == "pad-phone-hero":
+            targets.append(("ipad", args.ipad))
+        for label, path in targets:
             if path is None:
                 continue
             if not path.expanduser().is_file():
@@ -449,7 +634,6 @@ def main() -> None:
                 raise SystemExit(f"background not found: {args.bg}")
         args.out = args.out.expanduser()
     args.func(args)
-
 
 if __name__ == "__main__":
     main()

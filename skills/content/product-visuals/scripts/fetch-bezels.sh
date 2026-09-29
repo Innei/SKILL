@@ -6,13 +6,16 @@ mkdir -p "$CACHE"
 
 IPHONE_URL="https://devimages-cdn.apple.com/design/resources/download/Bezel-iPhone-17.dmg"
 MAC_URL="https://devimages-cdn.apple.com/design/resources/download/Bezel-MacBook-Pro-M5.dmg"
+IPAD_URL="https://devimages-cdn.apple.com/design/resources/download/Bezel-iPad-Pro-(M5).dmg"
 
 need_iphone=0
 need_mac=0
+need_ipad=0
 [[ -f "$CACHE/iphone-17-pro-silver-portrait.png" ]] || need_iphone=1
 [[ -f "$CACHE/macbook-pro-m5-14-space-black.png" ]] || need_mac=1
+[[ -f "$CACHE/ipad-pro-m5-13-silver-landscape.png" ]] || need_ipad=1
 
-if [[ "$need_iphone" -eq 0 && "$need_mac" -eq 0 ]]; then
+if [[ "$need_iphone" -eq 0 && "$need_mac" -eq 0 && "$need_ipad" -eq 0 ]]; then
   echo "$CACHE"
   exit 0
 fi
@@ -20,8 +23,10 @@ fi
 TMP="$(mktemp -d)"
 IPHONE_VOL=""
 MAC_VOL=""
+IPAD_VOL=""
 trap '[[ -n "$IPHONE_VOL" ]] && hdiutil detach "$IPHONE_VOL" >/dev/null 2>&1 || true
       [[ -n "$MAC_VOL" ]] && hdiutil detach "$MAC_VOL" >/dev/null 2>&1 || true
+      [[ -n "$IPAD_VOL" ]] && hdiutil detach "$IPAD_VOL" >/dev/null 2>&1 || true
       rm -rf "$TMP"' EXIT
 
 attach() {
@@ -51,6 +56,19 @@ if [[ "$need_mac" -eq 1 ]]; then
     "$CACHE/macbook-pro-m5-14-silver.png"
   hdiutil detach "$MAC_VOL" >/dev/null
   MAC_VOL=""
+fi
+
+if [[ "$need_ipad" -eq 1 ]]; then
+  curl -fsSL -o "$TMP/ipad.dmg" "$IPAD_URL"
+  IPAD_VOL="$(attach "$TMP/ipad.dmg")"
+  cp "$IPAD_VOL/PNG/iPad Pro (M5) 13\" - Silver - Landscape.png" \
+    "$CACHE/ipad-pro-m5-13-silver-landscape.png"
+  cp "$IPAD_VOL/PNG/iPad Pro (M5) 13\" - Space Black - Landscape.png" \
+    "$CACHE/ipad-pro-m5-13-space-black-landscape.png"
+  cp "$IPAD_VOL/PNG/iPad Pro (M5) 13\" - Silver - Portrait.png" \
+    "$CACHE/ipad-pro-m5-13-silver-portrait.png"
+  hdiutil detach "$IPAD_VOL" >/dev/null
+  IPAD_VOL=""
 fi
 
 echo "$CACHE"
