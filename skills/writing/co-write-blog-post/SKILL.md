@@ -128,7 +128,8 @@ new title *and* a smoother paragraph — runs this loop once per request):
    | ------- | ---- |
    | Diagram (画图, 流程图, 时序图) | `$REFS/visuals.md`, then LiteXML syntax via `bash "$S/load-litexml.sh"` |
    | Rewrite, tighten, continue a passage | `$REFS/writing-style.md` with the recorded narrator |
-   | Image / screenshot | `$REFS/visuals.md` › attachments (`mxs file upload`, `image-meta.mjs`) |
+   | Image / screenshot | "Local assets" below, then `image-meta.mjs` on the local file |
+   | Excalidraw scene, chart data, any JSON or file the article references | "Local assets" below |
    | Interactive widget or special node | `$REFS/node-usage.md` |
    | Numbers compared before/after (timings, sizes) | `before-after-bars` entry in the `dynamic-widgets-catalog` snippet (`mxs snippet get dynamic-widgets-catalog`); insert a `<dynamic>` node with its exact `url` and props instead of a table |
    | Title, slug, tags, category | edit `<meta>` in place; the server adopts your envelope and later autosaves keep it (stdout: `+0 ~0 -0 blocks`) |
@@ -154,6 +155,24 @@ Suggestions the human did not ask to apply — alternative wording, a missing
 transition, a follow-up sentence a diagram needs — go in chat for the human
 to accept.
 
+#### Local assets
+
+A draft stays local until [4]. Nothing the article references is uploaded
+while drafting: images, Excalidraw scenes, chart data, JSON, attachments.
+`$REFS/visuals.md` › attachments describes the upload itself; in this skill
+it runs only in [4] step 4.
+
+- Save each asset as `$DRAFTS/<slug>/assets/<name>` and reference it by that
+  relative path (`src="assets/shot.jpg"`). `mxs author` serves files beside
+  the draft, so the editor previews them (needs an `mxs` whose author server
+  has the draft-directory fallback; older builds show a broken image).
+- Excalidraw scenes stay inline (`<![CDATA[…]]>`) while drafting: the node
+  only fetches `http`/`blob:`/`ref:` bodies, never a relative path. Move a
+  large scene to a remote URL in [4] step 4 if needed.
+- Images still need `width`, `height`, `thumbhash`: run `image-meta.mjs --xml`
+  on the local file (cwd = a project with `sharp` + `thumbhash`, e.g. mx-core).
+- Never upload to make an asset render in the editor.
+
 ### [4] Finish
 
 When the human says 写完了 / done (for a bare "更新草稿" on a draft that already
@@ -166,7 +185,13 @@ has a `draftId`, skip to step 4 with the `aiGen` already in `session.json`):
    disclosure from `session.json` › `aiGen` and let the human confirm: `-1`
    handmade (agent changed nothing), `0` assist (rewrote or drafted passages),
    `4` title, `8` illustration (diagrams or images). Values combine, e.g. `'[0,8]'`.
-4. Fill `<category>` (existing slug from `mxs category list --output llm`) and
+4. Upload local assets, only now: for each `assets/…` reference run
+   `mxs file upload "$DRAFTS/<slug>/assets/<name>" --type image|file` **without**
+   `--silent` and read the `url:` line. The server renames every file, and
+   neither `--silent` output nor `mxs file list` gives the URL back; an upload
+   whose URL was not captured is an orphan in object storage. Rewrite all
+   references in one in-place edit and wait for `agent edit merged`.
+5. Fill `<category>` (existing slug from `mxs category list --output llm`) and
    `<tags>` in place, then follow `$REFS/publish-flow.md`:
    - no `draftId` yet → "Create" with
      `bash "$S/create-draft.sh" "$DRAFTS/<slug>/article.xml" --ai-gen '<value>'`,
@@ -189,6 +214,8 @@ has a `draftId`, skip to step 4 with the `aiGen` already in `session.json`):
 | Mistake | Fix |
 | ------- | --- |
 | Draft under `/tmp` or the cwd | `$DRAFTS/<slug>/article.xml`; the `.loro` history must survive reboots. |
+| Uploading images, diagrams or data while drafting | Keep them in `$DRAFTS/<slug>/assets/`; upload only in [4] step 4. A draft abandoned mid-way must leave nothing online. |
+| `mxs file upload --silent`, then looking for the URL | Upload without `--silent` and read `url:`; the server-side name is random and not recoverable. |
 | Re-asking intake on resume, or forgetting contributions | Read and update `session.json`. |
 | Second `mxs author` on a file already being served | `pgrep` first; two processes fight over one file. |
 | Recreating a draft that exists | Resume it; the file and its history are the human's work. |
@@ -206,5 +233,6 @@ has a `draftId`, skip to step 4 with the `aiGen` already in `session.json`):
 - [ ] Draft lives at `$DRAFTS/<slug>/article.xml` with an up-to-date `session.json`; an existing draft was resumed, not recreated.
 - [ ] Every agent change was one in-place edit followed by `agent edit merged` on stdout.
 - [ ] No prose was added to the article without a request.
+- [ ] No asset was uploaded before [4] step 4, and every uploaded URL was captured and written into the article.
 - [ ] Slop findings were reported, not auto-applied.
 - [ ] `meta.aiGen` on the draft matches the value the human confirmed; nothing was published without an explicit yes.
