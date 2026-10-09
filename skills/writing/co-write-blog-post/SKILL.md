@@ -126,7 +126,7 @@ new title *and* a smoother paragraph — runs this loop once per request):
 
    | Request | Load |
    | ------- | ---- |
-   | Diagram (画图, 流程图, 时序图) | `$REFS/visuals.md`, then LiteXML syntax via `bash "$S/load-litexml.sh"` |
+   | Diagram (画图, 流程图, 时序图) | `$REFS/visuals.md`, then LiteXML syntax via `bash "$S/load-litexml.sh"`; store Excalidraw scenes as files per "Local assets", overriding the inline CDATA rule in `visuals.md` |
    | Rewrite, tighten, continue a passage | `$REFS/writing-style.md` with the recorded narrator |
    | Image / screenshot | "Local assets" below, then `image-meta.mjs` on the local file |
    | Excalidraw scene, chart data, any JSON or file the article references | "Local assets" below |
@@ -166,9 +166,14 @@ it runs only in [4] step 4.
   relative path (`src="assets/shot.jpg"`). `mxs author` serves files beside
   the draft, so the editor previews them (needs an `mxs` whose author server
   has the draft-directory fallback; older builds show a broken image).
-- Excalidraw scenes stay inline (`<![CDATA[…]]>`) while drafting: the node
-  only fetches `http`/`blob:`/`ref:` bodies, never a relative path. Move a
-  large scene to a remote URL in [4] step 4 if needed.
+- Excalidraw scenes are files too: write the scene JSON to
+  `assets/<name>.excalidraw` and reference it as
+  `<excalidraw>assets/<name>.excalidraw</excalidraw>`, never as inline CDATA.
+  The editor fetches the path from the draft directory, and a scene the human
+  edits in the browser is saved back as a new `assets/<name>-<hash>.excalidraw`
+  (needs an `mxs` built with `@haklex/rich-ext-excalidraw` newer than 0.46.3;
+  older builds render the path as an empty diagram, so keep the scene inline
+  there and still turn it into a file in [4] step 4).
 - Images still need `width`, `height`, `thumbhash`: run `image-meta.mjs --xml`
   on the local file (cwd = a project with `sharp` + `thumbhash`, e.g. mx-core).
 - Never upload to make an asset render in the editor.
@@ -191,6 +196,11 @@ has a `draftId`, skip to step 4 with the `aiGen` already in `session.json`):
    neither `--silent` output nor `mxs file list` gives the URL back; an upload
    whose URL was not captured is an orphan in object storage. Rewrite all
    references in one in-place edit and wait for `agent edit merged`.
+   Every `<excalidraw>` must end as an uploaded `.excalidraw` file
+   (`--type file`): write any inline body (a scene the human drew in the
+   browser starts inline) to `assets/<name>.excalidraw` first, then upload.
+   Replace only the first line of the body with the URL; a JSON delta on the
+   following lines stays as it is.
 5. Fill `<category>` (existing slug from `mxs category list --output llm`) and
    `<tags>` in place, then follow `$REFS/publish-flow.md`:
    - no `draftId` yet → "Create" with
@@ -204,8 +214,11 @@ has a `draftId`, skip to step 4 with the `aiGen` already in `session.json`):
      top-level blocks shown free. Count root children of the server draft
      (`mxs draft get <id> --json`), offer section boundaries as options, set it
      with `mxs draft update <id> --meta` (keeping `aiGen`), and store it in
-     `session.json` › `paywall`. `isPremium` has no CLI flag; the human toggles
-     it in the admin premium panel.
+     `session.json` › `paywall`. The paywall only applies once the draft is
+     premium: `mxs draft update <id> --premium true` (needs `mxs` ≥ 0.21.5;
+     older builds have no flag, and the human toggles it in the admin premium
+     panel). `--meta` replaces the whole meta, so pass every key the server
+     draft already has (`aiGen`, `paywall`, and a `cover` the human set).
    Keep the editor running; later browser edits reach the server only through
    this step. Publish only after the human approves the draft preview.
 
@@ -214,6 +227,7 @@ has a `draftId`, skip to step 4 with the `aiGen` already in `session.json`):
 | Mistake | Fix |
 | ------- | --- |
 | Draft under `/tmp` or the cwd | `$DRAFTS/<slug>/article.xml`; the `.loro` history must survive reboots. |
+| Inline Excalidraw JSON in the draft that reaches the server | Scenes live in `assets/*.excalidraw`; [4] step 4 uploads each and leaves only URLs in the article. |
 | Uploading images, diagrams or data while drafting | Keep them in `$DRAFTS/<slug>/assets/`; upload only in [4] step 4. A draft abandoned mid-way must leave nothing online. |
 | `mxs file upload --silent`, then looking for the URL | Upload without `--silent` and read `url:`; the server-side name is random and not recoverable. |
 | Re-asking intake on resume, or forgetting contributions | Read and update `session.json`. |
