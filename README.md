@@ -41,6 +41,7 @@ SKILL/
 
 | Skill | Purpose |
 | ----- | ------- |
+| [`iphone-duo-dual-pane`](skills/automation/iphone-duo-dual-pane/SKILL.md) | Build, lay out, and verify an iOS app on the iPhone Duo foldable — measured inner/outer displays, right status safe area, dual-pane UIArrangementViewController, hinge postures, and simctl/axe verification |
 | [`profiling-electron-startup`](skills/automation/profiling-electron-startup/SKILL.md) | Segment an Electron app's launch (native / main bundle / window / renderer) with instrumented entry, CPU profile and startup trace, then apply only the levers whose segment is big |
 | [`react-rerender-audit`](skills/automation/react-rerender-audit/SKILL.md) | Measure React re-render counts over CDP, name the exact hook causing them, fix by lowering state, lock with a Profiler test |
 | [`session-handoff`](skills/automation/session-handoff/SKILL.md) | Produce a self-contained handoff prompt for another agent when delegating continued work |
