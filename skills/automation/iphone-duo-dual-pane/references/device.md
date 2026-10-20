@@ -61,8 +61,8 @@ Full rules, frames and nesting cases are in `layout.md`. In short:
   column as 38 × 38 buttons, stacked top to bottom: back first, then
   `UIBarButtonItem` trailing items. When the column segment runs out of room,
   the rest go into a `•••` overflow button.
-- Custom-view bar items (react-native-screens `headerRight`) are not collected;
-  they stay in the bar and end at the column's edge.
+- Custom-view bar items are not collected; they stay in the bar and end at
+  the column's edge. React Native specifics are in `react-native.md`.
 - Bars respect the inset; **content does not unless asked**. Every RN surface
   root needs its own `SafeAreaProvider` and must apply the right inset.
 
@@ -131,29 +131,8 @@ arrangement.updateArrangement(.split.axes(.horizontal))
 
 ## Hosting React Native panes
 
-What it took so that each placement can host its own RN surface on the app's
-single React host (Expo SDK 57, RN 0.86 New Architecture):
-
-- Create surfaces with
-  `ExpoReactRootViewFactory.superView(withModuleName:initialProperties:launchOptions:bundleConfiguration:devMenuConfiguration:)`,
-  passing `RCTBundleConfiguration.default()` and `factory.devMenuConfiguration`.
-  The plain `rootViewFactory.view(withModuleName:)` goes through
-  expo-dev-launcher in Debug, which restarts the launcher, clears `reactHost`
-  and boots a **second JS runtime** (`"<Module>" has not been registered`).
-- expo-splash-screen attaches the launch storyboard as `loadingView` to every
-  new root view and only removes it for the main root. On each extra
-  `RCTSurfaceHostingProxyRootView`, call `disableActivityIndicatorAutoHide(false)`
-  and replace `loadingView` (it is non-optional) with an empty `UIView()`.
-- In `AppDelegate.swift`, import the native module package as
-  `internal import <KitModule>`. `ExpoModulesProvider` already imports it as
-  `internal`, and a plain `import` fails with "ambiguous implicit access level".
-- `useWindowDimensions()` inside a pane returns the whole window (951 × 669),
-  not the pane. Read pane size from layout.
-- Each extra surface is its own React root: register it with
-  `AppRegistry.registerComponent`, and do not use a second `ExpoRoot`. Pane
-  stacks can use `NavigationContainer` from
-  `expo-router/build/react-navigation/native` with `createNativeStackNavigator`
-  (the export is marked deprecated).
+React Native hosting, react-native-screens behavior, RN presentations and the
+library versions they were measured with are in `react-native.md`.
 
 ## Tooling on the Duo simulator
 
@@ -168,8 +147,6 @@ single React host (Expo SDK 57, RN 0.86 New Architecture):
   taps on system alerts and on sheets in landscape often reported success
   without landing. Drive flows with deep links instead
   (`<scheme>://…` or the dev-client URL).
-- After editing JS, surfaces that were already open did not pick up Fast
-  Refresh. Relaunching the app and reconnecting the dev client did.
 
 ## Unverified
 
@@ -183,8 +160,6 @@ Open for a production dual-pane build:
 3. Custom chrome under the right column: custom docks, custom headers, and
    screens using `contentInsetAdjustmentBehavior="never"` on the outer
    display.
-4. React Native presentations (`formSheet` screens, `Modal`) from inside a
-   pane. Only native UIKit presentations were measured (`layout.md`).
 
 Later:
 

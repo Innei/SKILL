@@ -5,7 +5,7 @@ description: Build, lay out, or verify an iOS app on iPhone Duo (foldable, iOS 2
 
 # iPhone Duo dual-pane
 
-Measured facts live in two references. Read them before choosing a size, an
+Measured facts live in three references. Read them before choosing a size, an
 inset, or where a bar item goes; do not re-probe what they already record.
 Facts marked **unverified** still need a run.
 
@@ -34,7 +34,8 @@ Facts marked **unverified** still need a run.
 - Inside a pane, `useWindowDimensions()` is the whole window. Use pane size.
 - Each extra RN surface: created with `ExpoReactRootViewFactory.superView(…)`,
   splash `loadingView` replaced, its own `SafeAreaProvider`, its own
-  `AppRegistry` root. Never a second `ExpoRoot`.
+  `AppRegistry` root. Never a second `ExpoRoot`. Details in
+  `references/react-native.md`.
 
 ## Verifying on the simulator
 
@@ -54,3 +55,9 @@ Facts marked **unverified** still need a run.
 - `references/layout.md`: navigation controller outside and inside
   `UIArrangementViewController`, outer pushes, which display shows what after
   fold and unfold, and the boundary rules for nesting.
+- `references/react-native.md`: hosting RN surfaces, react-native-screens bars
+  and presentations, safe-area reporting, and the **exact library versions**
+  the results are locked to. If `react-native-screens`, `react-native`,
+  `expo-router`, `react-native-safe-area-context`, `expo-dev-launcher` or
+  `expo-splash-screen` changed since, rerun the test harness before relying
+  on it.

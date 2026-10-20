@@ -8,7 +8,9 @@ resolves, and what shows on which display after fold and unfold.
 Measured on the iPhone Duo simulator (iOS 27.1) on 2026-10-20/21 with a
 dual-pane test harness (a native debug screen driven by deep links). Frames are
 window points, `{x, y, width, height}`, from debug logs or the accessibility
-tree. Display sizes and the safe-area column are in `device.md`.
+tree. Display sizes and the safe-area column are in `device.md`. React Native
+specifics (react-native-screens bars, RN presentations, locked library
+versions) are in `react-native.md`.
 
 Postures used below:
 
@@ -53,9 +55,8 @@ safe-area column as 38 × 38 buttons, stacked from the top:
   into a `•••` button below the back. Seen in the folded default split: the
   top pane (339 pt tall) showed back + `•••`, with `★` and share inside the
   menu.
-- **Custom-view items are not collected.** A react-native-screens `headerRight`
-  (custom view) stayed in the bar, ending at the column edge: secondary `★`
-  `{825, 30, 36, 36}`, outer display `{340, 30, 36, 36}`.
+- **Custom-view items are not collected.** They stay in the bar, ending at the
+  column edge (frames in `react-native.md`).
 - The title moves to the leading edge of the bar (x ≈ 20 into the pane).
 - **Large title**: because the bar row is now empty, the large title sits in
   the first row (`{515.7, 31, 158, 34}` in the secondary pane). The search bar
@@ -70,8 +71,8 @@ safe-area column as 38 × 38 buttons, stacked from the top:
 This is the primary pane in landscape and any pane in portrait. The bar behaves
 as on an iPhone:
 
-- UIKit back is a 48 × 48 chevron at `{20, 24}`. The react-native-screens back
-  keeps its title: `{20, 24, 132.7, 48}`.
+- UIKit back is a 48 × 48 chevron at `{20, 24}` (react-native-screens keeps
+  the back title; see `react-native.md`).
 - Trailing `★` stays in the bar: `{391.7, 28, 40, 40}` half-open,
   `{411.7, 28, 40, 40}` flat, `{481, 28, 40, 40}` in portrait, where it ends
   next to the status glyphs in the same row.
@@ -204,11 +205,7 @@ Transitions verified, each with the same process and no JS reload:
 
 ## Unverified
 
-- React Native presentations from inside a pane (`formSheet` screens, `Modal`).
-  Native UIKit presentations only.
 - `.fullScreen` and `UISplitViewController` in flat and portrait;
   `overlay-edge` and popovers in portrait.
 - The outer display rotated to landscape.
-- Mixed bars: a react-native-screens stack inside a plain UIKit outer bar was
-  run; a UIKit stack inside an RN surface was not.
 - Everything on hardware.
