@@ -5,9 +5,9 @@ description: Build, lay out, or verify an iOS app on iPhone Duo (foldable, iOS 2
 
 # iPhone Duo dual-pane
 
-Measured device facts live in `references/device.md`. Read it before choosing a
-size, inset, or bar layout; do not re-probe what it already records. Facts
-marked **unverified** there still need a run.
+Measured facts live in two references. Read them before choosing a size, an
+inset, or where a bar item goes; do not re-probe what they already record.
+Facts marked **unverified** still need a run.
 
 ## Rules that hold everywhere
 
@@ -23,7 +23,10 @@ marked **unverified** there still need a run.
 - Half-open leaves a 40 pt division gap between panes; flat leaves none. Let
   `UIArrangementViewController` handle it.
 - Folded shows primary only (`.split.axes(.horizontal)`); secondary is hidden,
-  not released.
+  not released. The top of the outer stack stays on top through fold and
+  unfold.
+- Hide the outer navigation bar while the arrangement page is on top; showing
+  it stacks two bars and pushes collected back buttons over content.
 - Inside a pane, `useWindowDimensions()` is the whole window. Use pane size.
 - Each extra RN surface: created with `ExpoReactRootViewFactory.superView(…)`,
   splash `loadingView` replaced, its own `SafeAreaProvider`, its own
@@ -42,6 +45,8 @@ marked **unverified** there still need a run.
 
 ## References
 
-- `references/device.md`: display metrics, safe areas, navigation-bar and
-  hinge behavior, RN pane hosting, simulator tooling, and the open questions
-  that still need a real run.
+- `references/device.md`: displays, the safe-area column, bar item rules,
+  hinge and postures, RN surface hosting, simulator tooling.
+- `references/layout.md`: navigation controller outside and inside
+  `UIArrangementViewController`, outer pushes, which display shows what after
+  fold and unfold, and the boundary rules for nesting.

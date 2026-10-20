@@ -65,9 +65,11 @@ each pane:
    collected. With the back item still in the bar (primary pane, flat), the
    back button keeps its title (`{{20, 24}, {132.7, 48}}`) and the title is
    centered in the pane.
-4. **Half-open (book posture)**, the primary pane's back item also collapses
-   to a 38 × 38 button, at the pane's trailing edge next to the hinge
-   (`{{388.7, 29}, {38, 38}}`).
+4. **Unverified:** in the first half-open run (no trailing items in the bar),
+   the primary pane's back item collapsed to a 38 × 38 button at the pane's
+   trailing edge next to the hinge (`{{388.7, 29}, {38, 38}}`). A later
+   half-open run with a trailing `★` kept it leading with its title. Do not
+   rely on either.
 5. Bars respect the inset; **content does not unless asked**. RN content in the
    test ran under the right column until it read `useSafeAreaInsets()`. Every
    surface root needs its own `SafeAreaProvider` and must apply the right
