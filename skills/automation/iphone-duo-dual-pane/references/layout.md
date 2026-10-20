@@ -180,8 +180,10 @@ Transitions verified, each with the same process and no JS reload:
 
 ## Boundary rules
 
-1. Hide the outer bar while the arrangement page is on top. Show it on
-   full-width pages, which also keeps their edge-swipe back working.
+1. Hide the outer bar while the arrangement page is on top. On full-width
+   pages, showing it keeps edge-swipe back working, but it replaces the page's
+   own toolbar items. Hiding it there too and letting each full page draw its
+   own header with a Back item also works (see `react-native.md`).
 2. Use `UIBarButtonItem`s for bar actions so UIKit can move them into the
    column. A custom-view item stays in the bar and narrows the title area.
 3. Keep column-adjacent panes to at most one trailing bar item, plus the back

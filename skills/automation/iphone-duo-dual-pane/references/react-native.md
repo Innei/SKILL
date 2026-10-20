@@ -116,6 +116,63 @@ To have a trailing action follow the system placement into the column, use a
 native bar item (`headerRight` renders a custom view). Do not hand-place
 anything at the column's x.
 
+## Pane stacks outside expo-router
+
+Results from production pane and full-page roots (plain RN screen components in
+the app's source tree, not the test harness):
+
+- `unstable_headerRightItems` / `unstable_headerLeftItems` with `type: 'button'`
+  are real `UIBarButtonItem`s. In a column-adjacent pane they are collected into
+  column slot 1 (`{884, 129, 38, 38}`), like UIKit items.
+- `Stack.Toolbar` (and `NavigationHeader`, which uses it) throws
+  `useCompositionOption must be used within a RouterCompositionOptionsProvider`
+  under `build/react-navigation/native-stack`. Use expo-router's fork,
+  `expo-router/build/fork/native-stack/createNativeStackNavigator`, when a
+  root's screens need toolbar items. The fork also needs
+  `LinkPreviewContextProvider` from `expo-router/build/link/preview/LinkPreviewContext`
+  inside the `NavigationContainer`, or it throws `useLinkPreviewContext must be
+  used within a LinkPreviewContextProvider`.
+- expo-router's `<Stack.Screen options>` inside a component calls
+  `navigation.setOptions` on whatever screen hosts it. Two sections sharing one
+  stack screen override each other's header; isolate one with a
+  `NavigationContext` whose `setOptions` is a no-op and a detached
+  `CompositionContext` (`{ set() {}, unset() {} }`).
+- expo-router's `useFocusEffect` works in a pane: it uses the pane's
+  react-navigation context once the router store is ready.
+- Screen content does not avoid the right column by itself. Give the pane's
+  `contentStyle` `paddingRight` equal to the right inset; the header stays
+  column-adjacent so its items are still collected.
+- `useHeaderHeight()` reports the real bar height (82 pt when column-adjacent).
+  `insets.top + 44`-style arithmetic undershoots it.
+
+## Safe areas reported to JavaScript
+
+- Primary at half-open, the full inner window and the outer display all report
+  `top: 0`; the status sits in the right column. UIKit still places bar items at
+  y 24–28 in such a pane. Custom chrome that positions itself from `insets.top`
+  hugs the top edge unless it treats 0 as 24 (a shared `useChromeInsets()`
+  helper).
+- Do not raise the top inset app-wide: sheets report `top: 0` on every iPhone.
+  Apply it only to full-screen chrome (the tab roots).
+- A `SafeAreaInsetsContext` override placed under the root `SafeAreaProvider`
+  does not reach tab content; nested providers inside the navigators measure
+  again.
+- Native chrome that pins to the view's edges ignores the column; pin it to
+  `safeAreaLayoutGuide` leading/trailing (a native overlay pinned to the view
+  edges behaves the same way).
+
+## Shared state across roots
+
+- Every root needs auth: the root module's `AuthProvider` publishes its context
+  value; extra roots render a shared proxy provider, which waits for the first
+  published value.
+- A hook that owns network state (an agent chat hook) must run in one root only.
+  The owner must not subscribe to the state it publishes: such a hook returns a
+  new object every render, so a self-subscribed owner re-renders forever
+  ("Maximum update depth exceeded").
+- A JS reload restores the last opened deep link as the initial route. A debug
+  deep link that triggers `DevSettings.reload()` therefore reloads in a loop.
+
 ## Presentations from a pane
 
 Measured with native-stack screens in the pane's stack and with RN `<Modal>`
@@ -168,10 +225,12 @@ reports coordinates **relative to the presented sheet**, so x and y read 0.
 
 ## Unverified (RN)
 
-- expo-router `Stack` screens (as opposed to a bare native-stack) inside a
-  pane surface. The app-specific presentation store path is not exercised.
+- `present()` from a pane routes through the root module's stack
+  (window-scoped, so the frames match the measurements above); a signed-in
+  session was not available to exercise the sheets the pane screens open.
 - `Stack.Toolbar` bottom items and `headerLargeTitle` / `headerSearchBarOptions`
   in RN pane bars. The UIKit equivalents are in `layout.md`.
+- The shared agent conversation and shared auth with a signed-in account.
 - Gesture-handler and Reanimated behavior across fold and unfold.
-- Running a floating workspace/chart presenter and a chat presenter under the
+- A floating chart/workspace presenter and an agent chat presenter under the
   replaced root.
