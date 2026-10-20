@@ -152,14 +152,14 @@ library versions they were measured with are in `react-native.md`.
 
 Open for a production dual-pane build:
 
-1. The app's real root module (expo-router, NativeTabs, custom docks, splash)
-   running as the primary placement with the window root replaced. Only test
-   panes in a modal were hosted.
-2. Native presenters that walk `keyWindow.rootViewController` under the new
-   root.
-3. Custom chrome under the right column: custom docks, custom headers, and
-   screens using `contentInsetAdjustmentBehavior="never"` on the outer
-   display.
+1. Custom chrome under the right column: custom docks, custom headers, and
+   screens using `contentInsetAdjustmentBehavior="never"` on the outer display
+   (looked right in the main run; not measured screen by screen).
+2. A floating chart/workspace presenter and a chat presenter under the new
+   root (both need a signed-in session).
+
+The root module as the primary placement with the window root replaced is
+verified; see `react-native.md`.
 
 Later:
 

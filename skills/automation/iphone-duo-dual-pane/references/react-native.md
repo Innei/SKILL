@@ -43,6 +43,11 @@ done
 node -p "'expo-dev-launcher ' + require(require.resolve('expo-dev-launcher/package.json', { paths: [require.resolve('expo-dev-client/package.json')] })).version"
 ```
 
+Metro logs `expo-router@57.0.8/…/entry.js` as the bundle entry. That is a
+stale pnpm store directory; only its three-line entry shim is bundled, and it
+imports `expo-router/entry-classic` from 57.0.28. Every other expo-router
+module in the bundle is 57.0.28.
+
 ## Hosting a React Native surface in a placement
 
 - Create surfaces with
@@ -72,6 +77,32 @@ node -p "'expo-dev-launcher ' + require(require.resolve('expo-dev-launcher/packa
   not the pane. Use the pane's own layout.
 - State and stacks survive fold and unfold with no remount (same pid, no
   bundle reload).
+
+## The root module (expo-router) as the primary placement
+
+Verified by replacing the window root after the router root started: outer
+`UINavigationController` → arrangement page → `.primary` = the existing root
+view controller, `.secondary` = an extra surface.
+
+- Register extra surface modules at the bundle entry, before
+  `expo-router/entry`. A JS reload restarts every surface at once; a module
+  registered from the router's root layout is not registered yet when the
+  secondary surface starts (`"<Module>" has not been registered`).
+- A JS reload keeps the native arrangement and window root.
+- In Debug, expo-dev-launcher sets the window root after it connects, so a swap
+  done in `startReactNative` is overwritten. Swap from JS instead.
+- A render error that unmounts the root module leaves the secondary surface
+  running.
+- LogBox covers the whole window (951 × 669), not the pane.
+- Half-open frames in primary (456 × 669, top inset 0): header title
+  `{20, 12}`, header buttons end at x 431.7, native tab dock
+  `{79.8, 595, 296, 52}` centered in the pane, custom bar at y 0.
+- Folded (466 × 678, right inset 84): header buttons end at x 378, content
+  24–358, dock `{85, 604, …}`.
+- A native presenter that walks `keyWindow.rootViewController` presents from
+  the outer navigation controller: left half at half-open, a card on the outer
+  display after a fold.
+- Deep links (`RCTLinkingManager`) reach the root module unchanged.
 
 ## Bars with react-native-screens
 
@@ -142,4 +173,5 @@ reports coordinates **relative to the presented sheet**, so x and y read 0.
 - `Stack.Toolbar` bottom items and `headerLargeTitle` / `headerSearchBarOptions`
   in RN pane bars. The UIKit equivalents are in `layout.md`.
 - Gesture-handler and Reanimated behavior across fold and unfold.
-- Running the app's root module (expo-router root) as the primary placement.
+- Running a floating workspace/chart presenter and a chat presenter under the
+  replaced root.
