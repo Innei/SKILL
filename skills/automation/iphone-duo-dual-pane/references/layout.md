@@ -1,138 +1,214 @@
 # iPhone Duo — container nesting and layout
 
 How `UINavigationController` and `UIArrangementViewController` behave when
-nested, where each bar and action ends up, and what shows on which display
-after fold and unfold. Measured on the iPhone Duo simulator (iOS 27.1) with a
-dual-pane test app on 2026-10-20 and 2026-10-21. Device numbers (display sizes,
-safe-area column) are in `device.md`.
+nested: where every bar item goes, how panes are sized in each posture and
+arrangement, where sheets, popovers and the keyboard land, how edge-swipe pop
+resolves, and what shows on which display after fold and unfold.
+
+Measured on the iPhone Duo simulator (iOS 27.1) on 2026-10-20/21 with a
+dual-pane test harness (a native debug screen driven by deep links). Frames are
+window points, `{x, y, width, height}`, from debug logs or the accessibility
+tree. Display sizes and the safe-area column are in `device.md`.
+
+Postures used below:
+
+- **Half-open**: book posture, held landscape, 951 × 669, 40 pt division gap.
+- **Flat**: fully open, landscape, 951 × 669, no gap.
+- **Folded**: outer display, 466 × 678.
+- **Portrait**: fully open, rotated 90°, 669 × 951.
 
 ## The verified hierarchy
 
 ```
 UIWindow
 └─ UINavigationController                       outer stack
-   ├─ ArrangementPage (UIViewController)         root of the outer stack
-   │  └─ UIArrangementViewController             .split.axes(.horizontal)
-   │     ├─ .primary   → host VC → UINavigationController   inner stack A
-   │     └─ .secondary → host VC → UINavigationController   inner stack B
+   ├─ ArrangementPage (UIViewController)         outer root (also tested at depth 2)
+   │  └─ UIArrangementViewController
+   │     ├─ .primary   → UINavigationController   inner stack A
+   │     └─ .secondary → UINavigationController   inner stack B
    └─ FullPage (UIViewController)                pushed on the outer stack
 ```
 
-In the test app, each host VC's view is a React Native surface whose
-react-native-screens native-stack provides the inner `UINavigationController`.
-Plain UIKit navigation controllers in the placements are expected to behave the
-same way, but that is **unverified**.
+Both plain UIKit navigation controllers and react-native-screens stacks (in an
+RN surface) were run in the placements. A `UISplitViewController` in
+`.secondary` was also run (see Arrangements).
 
-## 1. Navigation controller outside an arrangement
+## Bar item placement
 
-The outer controller treats the two panes as one page: pushing replaces both,
-and popping brings both back.
+### Panes that touch the right column
 
-### Outer bar hidden while the arrangement page is on top (use this)
+This covers the secondary pane in landscape, an outer-stack page, and primary
+on the outer display. UIKit moves bar items out of the bar and into the right
+safe-area column as 38 × 38 buttons, stacked from the top:
 
-- Each pane's own bar sits at the top of its pane (y 0). Every action on screen
-  belongs to a pane.
-- The arrangement page's `navigationItem` (title, bar items) is not shown.
-- Hide the outer bar in `navigationController(_:willShow:animated:)` when the
-  incoming controller is the arrangement page. Show it for full-width pages.
+| Slot | Inner (landscape) | Outer display |
+| --- | --- | --- |
+| Status (time, connectivity) | y ≈ 30–96 | y ≈ 86–150 |
+| 1st collected item | `{884, 129, 38, 38}` | `{399, 179, 38, 38}` |
+| 2nd collected item | `{884, 189, 38, 38}` | `{399, 239, 38, 38}` |
+
+- Order: the back button first, then the `UIBarButtonItem` trailing items.
+  With no back (stack root), the first trailing item takes slot 1.
+- **Overflow:** when the pane's column segment is too short, the rest collapse
+  into a `•••` button below the back. Seen in the folded default split: the
+  top pane (339 pt tall) showed back + `•••`, with `★` and share inside the
+  menu.
+- **Custom-view items are not collected.** A react-native-screens `headerRight`
+  (custom view) stayed in the bar, ending at the column edge: secondary `★`
+  `{825, 30, 36, 36}`, outer display `{340, 30, 36, 36}`.
+- The title moves to the leading edge of the bar (x ≈ 20 into the pane).
+- **Large title**: because the bar row is now empty, the large title sits in
+  the first row (`{515.7, 31, 158, 34}` in the secondary pane). The search bar
+  goes below it (y 82–136), ending at the column edge. Pane
+  `safeAreaInsets.top` is 136 at the root (82 after a push).
+- **Bottom toolbar**: leading items stay leading (`{520.7, 602, …}`); the
+  trailing item is aligned to the column's x (`{884, 602, 38, 38}`; outer
+  display `{399, 611, 38, 38}`). Pane `safeAreaInsets.bottom` is 82.
+
+### Panes that do not touch the column
+
+This is the primary pane in landscape and any pane in portrait. The bar behaves
+as on an iPhone:
+
+- UIKit back is a 48 × 48 chevron at `{20, 24}`. The react-native-screens back
+  keeps its title: `{20, 24, 132.7, 48}`.
+- Trailing `★` stays in the bar: `{391.7, 28, 40, 40}` half-open,
+  `{411.7, 28, 40, 40}` flat, `{481, 28, 40, 40}` in portrait, where it ends
+  next to the status glyphs in the same row.
+- The title is centered when a back button is present.
+- **Large title** gets its own row: `{20, 85.7, 146.7, 40.7}`, with the search
+  bar below at y ≈ 134–188. Root `safeAreaInsets.top` is 188.
+- **Search active**: the search field takes the bar row with a close button
+  (`{391.7, 24, 44, 44}`), the large title disappears, and the trailing bar
+  item **moves into the bottom toolbar's leading slot** (`★` at `{25, 602}`,
+  pushing `Tool` to `{85, 602}`).
 
 ### Outer bar shown over the arrangement page (avoid)
 
-The two bars stack vertically:
-
-| | Inner display | Outer display (folded) |
+| | Inner | Outer display |
 | --- | --- | --- |
-| Outer bar | full width, title leading at x 20 | full width, title leading at x 20 |
+| Outer bar | full width, title leading at x 20 | same |
 | Pane bars | pushed down to y 82 | pushed down to y ≈ 58–140 |
 | Pane `safeAreaInsets.top` | 82 | 82 |
-| Outer trailing item (`+`) | collected into the right column at `{{884, 129}, {38, 38}}` | collected into the right column at `{{399, 179}, {38, 38}}` |
-| Pane back that the column collects | pushed lower, to `{{884, 211}, …}` | pushed lower, to `{{399, 261}, …}`, **over content** |
+| Outer trailing item | column slot 1, `{884, 129}` | `{399, 179}` |
+| Pane back the column collects | pushed lower, to `{884, 211}` | pushed lower, to `{399, 261}`, over content |
 
-Results:
+The outer bar costs 82 pt and pushes the pane's collected items over content.
+Hide it while the arrangement page is on top.
 
-- 82 pt of height goes to a bar that carries no pane-specific actions.
-- The right column becomes a vertical queue. The outer bar's items take the
-  first slot and push the pane's back button down until it overlaps content.
-- Trailing items of the pane bars stay in their bars, ending at the column's
-  edge (secondary `★` at x 825–861, primary `★` at x 393–429 when half open).
+## Pane geometry by arrangement and posture
 
-## 2. Navigation controller inside an arrangement placement
+`P` = primary, `S` = secondary.
 
-Each placement gets its own push stack and its own bar.
+| Arrangement | Half-open | Flat | Folded | Portrait |
+| --- | --- | --- | --- | --- |
+| `.split.axes(.horizontal)` | P `{0,0,456,669}`, S `{496,0,455,669}` | P `{0,0,476,669}`, S `{476,0,475,669}` | P only `{0,0,466,678}` | P only `{0,0,669,951}` |
+| `.split` (default) | same as above | same as above | stacked: P `{0,0,466,339}`, S `{0,339,466,339}` | stacked: P `{0,0,669,476}`, S `{0,476,669,475}` |
+| `.split`, P width `.fractional(0.35)`, `.axes(.horizontal)` | **ignored**: 456 / 455 | P `{0,0,333,669}`, S `{333,0,618,669}` | P only | P only |
+| `.overlay`, `.overlay.axes(.horizontal)` | side by side, **swapped**: S `{0,0,456,669}`, P `{496,0,455,669}` | both `{0,0,951,669}`, P on top (`zIndex` 1) | both full, P on top | both full, P on top |
+| `.overlay`, S `edge = .trailing` | both `{496,0,455,669}`, P on top, left half empty | both full, P on top | both full, P on top | not run |
+| `UISplitViewController` in S | S shows the detail column only; sidebar collapsed | not run | P only | not run |
 
-| | Primary pane (inner) | Secondary pane (inner) | Primary on the outer display |
-| --- | --- | --- | --- |
-| Back action | stays in the bar, leading, with its title (`{{20, 24}, {132.7, 48}}`) | collected into the right column (`{{884, 129}, {38, 38}}`) | collected into the right column (`{{399, 179}, {38, 38}}`) |
-| Title | centered while the back stays in the bar | leading (x ≈ 20 into the pane) | leading |
-| Trailing items | in the bar | in the bar, ending at the column edge (861) | in the bar, ending at the column edge (376) |
-| `safeAreaInsets` (t / l / b / r) | 0 / 0 / 34 / 0 | 0 / 0 / 34 / 84 | 0 / 0 / 34 / 84 |
+Notes:
 
-- Push and pop in one pane never touch the other pane's stack.
-- Bars respect the right inset by themselves; content does not. Apply
-  `safeAreaInsets.right` in each pane's content.
-- With the default `.split` (no axis limit), folded, the panes stack top and
-  bottom (≈ 325 pt each). The top pane's collected back button then lands over
-  its content (≈ `{{416, 194}}`). This is another reason to limit the axis to
-  `.horizontal`.
+- At half-open, the division region forces the split onto the hinge. Width
+  preferences only take effect when flat.
+- Overlay is a stacking layout. Panes only sit side by side when the hinge
+  divides them, and then primary is on the trailing side.
+- `state(for:)` reported `splitAxis` `h` for side-by-side, `v` for stacked,
+  and `0` for overlay. `zIndex` was 1 for primary in overlay and 0 otherwise.
 
-## 3. Outer push over the panes
+## Presentations from a pane
 
-- A page pushed on the outer stack covers both panes on the inner display
-  (951 pt wide, content 867) or the whole outer display (466 pt, content 382).
-- Its back action is collected into the right column, and its title is
-  leading. The outer bar is shown; the page's `safeAreaInsets` are
-  82 / 0 / 34 / 84.
-- Popping returns to the arrangement page with both inner stacks exactly as
-  they were (verified at depth 2 with no remount).
+The presentation container is always **the whole window**. The source pane does
+not scope the sheet, and the dimming covers both panes.
 
-## 4. What shows on which display
+| Style | Half-open | Flat | Folded | Portrait |
+| --- | --- | --- | --- | --- |
+| `.pageSheet` | `{8,8,460,661}`, **left half**, from either pane | `{149,8,653,661}`, centered on the display | `{8,8,450,670}` | `{8,82,653,869}` |
+| `.formSheet`, `.automatic` | `{78,205,320,260}`, centered in the **left half**, from either pane | `{316,205,320,260}`, centered on the display | `{8,8,450,670}` (same card as page) | `{175,346,320,260}` |
+| `.popover` (from the `★` bar item) | anchored to the item: P `{136,24,320,240}`; S (item in the column) `{610,184,320,240}` | P `{271,24,…}`; S `{610,184,…}` | adapts to the `{8,8,450,670}` card | not run |
+| `.fullScreen` | `{0,0,951,669}`, insets r84 | not run | `{0,0,466,678}` | not run |
 
-The display only decides geometry. The controller on top of the outer stack
-stays on top through fold and unfold.
+- A sheet from the secondary pane at half-open lands **over the primary
+  pane**.
+- Folding with a sheet from the secondary open: the sheet stays presented and
+  moves to the outer display as the `{8,8,450,670}` card over primary, while
+  secondary itself is hidden.
+- Sheet `safeAreaInsets`: page sheet half-open r0; folded cards r76.
 
-| Top of the outer stack | Unfolded (inner, 951 × 669) | Folded (outer, 466 × 678) |
+## Keyboard
+
+| | Frame | Notes |
 | --- | --- | --- |
-| Arrangement page, `.split.axes(.horizontal)` | primary and secondary side by side; 40 pt gap when half open, none when flat | **primary only**; secondary hidden but alive |
-| Arrangement page, `.split` (default) | side by side | stacked top and bottom |
-| Full page on the outer stack | full inner width | full outer width |
+| Inner landscape | `{0,405,951,264}` | split keyboard (left and right halves), full width, under the column |
+| Outer display | `{0,374,466,304}` | full width |
+
+The bottom toolbar's trailing (column-aligned) item lifts above the keyboard
+(inner `{884,354}`, outer `{399,323}`). Leading toolbar items stay where they
+are, under the keyboard.
+
+## Interactive pop (edge swipe)
+
+| Swipe | Result |
+| --- | --- |
+| From the screen's left edge, primary at depth 2 | primary's inner stack pops (`interactive=true`) |
+| From the screen's left edge again, primary at its root, outer stack at depth 2 | **nothing pops**. The outer bar is hidden on the arrangement page, which disables the outer interactive pop. |
+| From the secondary pane's left edge (right of the hinge), secondary at depth 2 | secondary's inner stack pops (`interactive=true`) |
+
+## Outer push and what shows on which display
+
+The controller on top of the outer stack stays on top through fold and unfold;
+only its geometry changes.
+
+| Top of the outer stack | Unfolded | Folded |
+| --- | --- | --- |
+| Arrangement page | per the geometry table | per the geometry table |
+| Full page | full width (951; content 867), back in column slot 1, insets 82/0/34/84 | full width (466; content 382), back in column slot 1 |
 
 Transitions verified, each with the same process and no JS reload:
 
 | Start | Action | Result |
 | --- | --- | --- |
-| Arrangement, unfolded, both panes at depth 2 | fold → unfold | folded shows primary at depth 2; unfolded shows both at depth 2, `mounts: 1` |
-| Arrangement, folded | push full page → unfold | the full page stays on top and widens to 951 pt |
+| Arrangement, both panes at depth 2 | fold → unfold | folded shows primary at depth 2; unfolded shows both at depth 2, no remount |
+| Arrangement, folded | push full page → unfold | the full page stays on top and widens |
 | Full page, unfolded | pop | both panes return at depth 2 |
-| Full page, unfolded | fold | the full page stays on top and narrows to 466 pt |
-| Full page, folded | pop | primary at depth 2, `mounts: 1`; secondary hidden |
+| Full page, unfolded | fold | the full page stays on top and narrows |
+| Full page, folded | pop | primary at depth 2; secondary hidden |
+| Sheet from secondary, half-open | fold | the sheet stays, as a card over primary |
 
 ## Boundary rules
 
-1. Hide the outer bar whenever the arrangement page is on top. Never show the
-   outer bar and the pane bars together.
-2. Put an action in the pane it acts on. There is no shared bar for the pair.
-3. Push inside a pane for drill-down within that pane. Push on the outer stack
-   only for destinations that need the full width.
-4. Folded, only primary and the outer stack are reachable. Anything that must
-   work while folded lives in primary or in an outer page.
-5. Secondary keeps its stack while hidden. Check
-   `arrangement.state(for: .secondary)?.isHidden` before doing work that only
-   matters while it is visible (polling, streams, animations).
-6. Read safe-area insets inside each pane and each outer page; they differ by
-   placement and by display. Never hard-code a full-window inset.
-7. Never place a manual back button at the top-left of a secondary pane or an
-   outer page. The system puts it in the right column.
+1. Hide the outer bar while the arrangement page is on top. Show it on
+   full-width pages, which also keeps their edge-swipe back working.
+2. Use `UIBarButtonItem`s for bar actions so UIKit can move them into the
+   column. A custom-view item stays in the bar and narrows the title area.
+3. Keep column-adjacent panes to at most one trailing bar item, plus the back
+   button. More than that risks the `•••` overflow on short panes.
+4. Do not assume a sheet stays over its pane. At half-open every page or form
+   sheet lands on the left half; flat, it is centered across both panes.
+   Content shown in a sheet from secondary must make sense over primary.
+5. A sheet left open in secondary survives a fold and covers primary. Decide
+   per flow whether to dismiss it when secondary hides; the current product
+   rule is to follow the system.
+6. Detect secondary visibility with `view.window == nil`, not
+   `state(for:)?.isHidden` alone.
+7. Do not rely on width preferences: half-open always splits at the hinge.
+8. Use `.overlay` only for content that is meant to cover the other pane;
+   it is full-screen stacking except at half-open.
+9. Anything that must work while folded lives in primary or on the outer stack.
+10. In portrait, the column is gone and bar items return to the bar; with
+    `.axes(.horizontal)` only primary is shown.
+11. Each pane's insets differ by placement and posture. Read them per pane;
+    never reuse window insets.
 
 ## Unverified
 
-- Interactive pop (edge swipe) when an inner stack and the outer stack can
-  both pop: which one wins in each pane.
-- Sheets and popovers presented from an inner navigation controller: their
-  width, and their behavior on fold. (Product decision: follow the system.)
-- Large titles, search controllers and bottom toolbars in pane bars.
-- Plain UIKit `UINavigationController` in a placement (only react-native-screens
-  stacks were run).
-- `UIOverlayArrangement`, and placing the arrangement somewhere other than the
-  outer stack's root.
-- Nesting a split view controller inside a placement. Secondary sources relay
-  Apple's advice against it.
+- React Native presentations from inside a pane (`formSheet` screens, `Modal`).
+  Native UIKit presentations only.
+- `.fullScreen` and `UISplitViewController` in flat and portrait;
+  `overlay-edge` and popovers in portrait.
+- The outer display rotated to landscape.
+- Mixed bars: a react-native-screens stack inside a plain UIKit outer bar was
+  run; a UIKit stack inside an RN surface was not.
+- Everything on hardware.

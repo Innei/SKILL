@@ -39,6 +39,10 @@ right safe area.
 The page row's top inset of 82 is the native navigation bar it sits under. The
 pane rows read 0 because they lay out under their own bars.
 
+Held portrait while unfolded (669 × 951), the status region moves to the
+top-right of the first bar row and the right column disappears: page
+`safeAreaInsets` 82 / 0 / 34 / 0.
+
 Right column contents (all in window points):
 
 | | Inner | Outer |
@@ -50,30 +54,17 @@ Right column contents (all in window points):
 
 ## Navigation bars
 
-Rules observed from UIKit, with react-native-screens native-stack bars inside
-each pane:
+Full rules, frames and nesting cases are in `layout.md`. In short:
 
-1. **The back action is collected into the right safe area.** When a bar's
-   leading back item would sit next to the status column (the secondary pane,
-   any outer-stack page, primary on the outer display), UIKit removes it from
-   the bar and shows it as a 38 × 38 circular button inside the column, below
-   the status glyphs.
-2. **Trailing items stay in the bar** and end at the column's left edge.
-   Measured: secondary pane `★` at `{{825, 30}, {36, 36}}` (ends at 861); outer
-   display `★` at `{{340, 30}, {36, 36}}` (ends at 376).
-3. **The title moves to the leading edge** when the back item has been
-   collected. With the back item still in the bar (primary pane, flat), the
-   back button keeps its title (`{{20, 24}, {132.7, 48}}`) and the title is
-   centered in the pane.
-4. **Unverified:** in the first half-open run (no trailing items in the bar),
-   the primary pane's back item collapsed to a 38 × 38 button at the pane's
-   trailing edge next to the hinge (`{{388.7, 29}, {38, 38}}`). A later
-   half-open run with a trailing `★` kept it leading with its title. Do not
-   rely on either.
-5. Bars respect the inset; **content does not unless asked**. RN content in the
-   test ran under the right column until it read `useSafeAreaInsets()`. Every
-   surface root needs its own `SafeAreaProvider` and must apply the right
-   inset.
+- Bar items that would sit next to the right column (the secondary pane, an
+  outer-stack page, primary on the outer display) are collected into the
+  column as 38 × 38 buttons, stacked top to bottom: back first, then
+  `UIBarButtonItem` trailing items. When the column segment runs out of room,
+  the rest go into a `•••` overflow button.
+- Custom-view bar items (react-native-screens `headerRight`) are not collected;
+  they stay in the bar and end at the column's edge.
+- Bars respect the inset; **content does not unless asked**. Every RN surface
+  root needs its own `SafeAreaProvider` and must apply the right inset.
 
 ## Hinge and postures
 
@@ -106,7 +97,9 @@ each pane:
   ≈ 325 pt tall).
 - With `.split.axes(.horizontal)`: the outer display shows **primary only**.
   The secondary view controller is hidden, not released, and returns unchanged
-  on unfold.
+  on unfold. `state(for: .secondary)?.isHidden` reads `true` after a fold, but
+  read `false` when the page was first presented while already folded (its
+  view was not in a window). Check `view.window == nil` instead.
 - Verified across unfold → fold → unfold: both panes' navigation stacks (depth
   2) and React state survived, with no remount.
 
@@ -128,7 +121,8 @@ arrangement.updateArrangement(.split.axes(.horizontal))
   each `.automatic`, `.intrinsic`, `.fractional(_)`, `.absolute(_)`) plus
   `layoutPriority`.
 - `UISplitArrangement` and `UIOverlayArrangement` (`.overlay`) both take
-  `axes(_:)` and `setViewProperties(_:for:)`. Overlay was **not exercised**.
+  `axes(_:)` and `setViewProperties(_:for:)`. Measured behavior of both is in
+  `layout.md`.
 - `UIViewController.arrangementViewController` finds the enclosing container.
 - Apple places a navigation container *outside* the arrangement. Two
   independent push stacks work by putting a navigation controller inside each
@@ -186,23 +180,21 @@ Open for a production dual-pane build:
    panes in a modal were hosted.
 2. Native presenters that walk `keyWindow.rootViewController` under the new
    root.
-3. Sheets and modals presented from a pane: their width, and what the system
-   does with them on fold and unfold.
-4. Custom chrome under the right column: custom docks, custom headers, and
+3. Custom chrome under the right column: custom docks, custom headers, and
    screens using `contentInsetAdjustmentBehavior="never"` on the outer
    display.
-5. Keyboard placement and size on both displays, for example a chat composer
-   or a form.
+4. React Native presentations (`formSheet` screens, `Modal`) from inside a
+   pane. Only native UIKit presentations were measured (`layout.md`).
 
 Later:
 
 - Hinge `angle` and `status` values from `UIHingeInteraction`.
 - `reservedRegions(kind:options:)` frames and margins for `.division` and
   `.occlusion`.
-- `UIOverlayArrangement`, and `UISplitArrangement` view properties (fixed or
-  fractional pane widths).
-- The inner display held portrait (rotated 90° while unfolded), and postures
-  other than half-open book and flat.
+- `UISplitArrangement` `.absolute`, `.intrinsic`, minimum/maximum and
+  `layoutPriority` (only `.fractional(0.35)` was run).
+- Postures other than closed, half-open book and flat; the outer display
+  rotated to landscape.
 - Multiple windows (`UIWindowScene.ActivationAction`), Live Activities and
   push presentation on the outer display.
 - Exact outer-display status glyph positions: the values above were read from a

@@ -18,10 +18,14 @@ Facts marked **unverified** still need a run.
   content out inside `safeAreaInsets.right`: the secondary pane has 371 pt, an
   outer-stack page 867 pt, primary on the outer display 382 pt.
 - Never draw a back button at the top-left of a page or pane that touches the
-  right column. UIKit collects it into the column (38 × 38, below the status
-  glyphs); trailing items stay in the bar and end at the column's edge.
-- Half-open leaves a 40 pt division gap between panes; flat leaves none. Let
-  `UIArrangementViewController` handle it.
+  right column. UIKit collects the back and `UIBarButtonItem` trailing items
+  into the column (38 × 38, stacked below the status); custom-view items stay
+  in the bar. Too many items overflow into `•••`.
+- Sheets are window-scoped: at half-open they land on the left half from
+  either pane; flat they center across both panes; a sheet left open in
+  secondary survives a fold.
+- Half-open leaves a 40 pt division gap between panes and overrides width
+  preferences; flat leaves none. Let `UIArrangementViewController` handle it.
 - Folded shows primary only (`.split.axes(.horizontal)`); secondary is hidden,
   not released. The top of the outer stack stays on top through fold and
   unfold.
