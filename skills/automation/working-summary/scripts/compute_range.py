@@ -33,6 +33,9 @@ def default_range(today: date) -> tuple[date, date]:
 
 def classify_day(d: date) -> dict:
     weekday = d.strftime("%a")
+    # Weekend is a calendar fact, independent of the holiday library: a
+    # make-up workday (调休) is still a Saturday/Sunday.
+    weekend = d.weekday() >= 5
     if HAS_CC:
         try:
             workday = bool(is_workday(d))
@@ -41,10 +44,22 @@ def classify_day(d: date) -> dict:
                 detail = get_holiday_detail(d)
                 if detail:
                     name = detail[1]
-            return {"date": d.isoformat(), "weekday": weekday, "workday": workday, "holiday": name}
+            return {
+                "date": d.isoformat(),
+                "weekday": weekday,
+                "weekend": weekend,
+                "workday": workday,
+                "holiday": name,
+            }
         except NotImplementedError:
             pass
-    return {"date": d.isoformat(), "weekday": weekday, "workday": d.weekday() < 5, "holiday": None}
+    return {
+        "date": d.isoformat(),
+        "weekday": weekday,
+        "weekend": weekend,
+        "workday": d.weekday() < 5,
+        "holiday": None,
+    }
 
 
 def classify_range(start: date, end: date) -> list[dict]:
@@ -84,6 +99,11 @@ def main() -> None:
         payload["breakdown"] = breakdown
         payload["workdays"] = sum(1 for d in breakdown if d["workday"])
         payload["holidays"] = sum(1 for d in breakdown if d["holiday"])
+        payload["weekends"] = sum(1 for d in breakdown if d["weekend"])
+        payload["weekend_dates"] = [d["date"] for d in breakdown if d["weekend"]]
+        payload["makeup_workdays"] = sum(
+            1 for d in breakdown if d["weekend"] and d["workday"]
+        )
 
     json.dump(payload, sys.stdout, ensure_ascii=False, indent=2)
     print()

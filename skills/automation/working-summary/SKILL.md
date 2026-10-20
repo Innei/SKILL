@@ -102,11 +102,14 @@ Explicit overrides:
 - `--from YYYY-MM-DD` — start from date, end at today
 - `--date YYYY-MM-DD` — pretend today is this date, then apply default rule
 
-### Chinese public holidays
+### Chinese public holidays and weekends
 
-`scripts/compute_range.py` uses the `chinesecalendar` Python library (loaded via `uv --with chinesecalendar`) to classify each day as workday / holiday. The orchestrator always emits a `range.breakdown` containing `{date, weekday, workday, holiday}` for every day, plus aggregated `workdays` / `holidays` counts. Use this data to:
+`scripts/compute_range.py` uses the `chinesecalendar` Python library (loaded via `uv --with chinesecalendar`) to classify each day as workday / holiday. Weekends are classified separately and unconditionally: Saturday/Sunday stay `weekend: true` even when the holiday library marks them as a make-up workday (调休).
 
-- Annotate the report header (e.g. "本周 3 工作日、2 节假日")
+The orchestrator always emits a `range.breakdown` containing `{date, weekday, weekend, workday, holiday}` for every day, plus aggregated `workdays` / `holidays` / `weekends` / `weekend_dates` / `makeup_workdays` counts. `stats.weekend` adds `{prs_merged, commits, dates}` for the weekend days. Use this data to:
+
+- Annotate the report header with all three buckets — workdays **and weekends** and holidays, never as "5 个工作日、0 节假日" with the weekend silently missing
+- Name the weekend dates explicitly in a `**周末**` header line and report weekend output separately (see **Header**)
 - Decide whether the range is meaningful at all (if `workdays == 0`, ask the user whether they want the **previous** working week instead)
 
 ## Data Collection
@@ -123,7 +126,7 @@ Returns JSON to stdout:
 
 ```jsonc
 {
-  "range": { "start": "...", "end": "...", "workdays": N, "holidays": N, "breakdown": [...] },
+  "range": { "start": "...", "end": "...", "days": 7, "workdays": N, "holidays": N, "weekends": N, "weekend_dates": ["..."], "makeup_workdays": N, "breakdown": [...] },
   "config": { "author": "...", "orgs": [...], "repos": [...], "include_commits": true, "linear": {...}, "output": {...} },
   "github": {
     "owner/repo": {
@@ -138,7 +141,8 @@ Returns JSON to stdout:
     "by_type": { "feat": 14, "fix": 9, "refactor": 6, "chore": 5 },
     "by_repo": [
       { "repo": "lobehub/lobehub", "prs": 18, "by_type": { "feat": 8, "fix": 5 } }
-    ]
+    ],
+    "weekend": { "prs_merged": 3, "commits": 30, "dates": ["2026-10-17", "2026-10-18"] }
   }
 }
 ```
@@ -251,7 +255,21 @@ The synthesized language applies to descriptions even when the **PR body** is in
 
 ### Sections
 
-1. **Header** — period title, date range, workday/holiday count, repo count + activity totals. Copy `stats.by_type` into a **构成** line (`feat 14 · fix 9 · …`), canonical order, omit zero buckets. Skip the line when `stats.prs_merged == 0`. **Copy `stats`; do not recount.**
+1. **Header** — period title, date range split into **工作日 / 周末 / 节假日** (all three buckets; never drop the weekend), repo count + activity totals.
+
+   Required shape (weekend line is mandatory):
+
+   ```markdown
+   **周期**：2026-10-12 ~ 2026-10-18（7 天：5 个工作日 · 2 个周末日 · 0 个节假日）
+   **周末**：10-17 Sat · 10-18 Sun — 合入 3 个 PR、30 次提交
+   ```
+
+   - `weekends`, `weekend_dates` and `makeup_workdays` come from `range`; `stats.weekend` supplies `prs_merged` / `commits`. Copy them, never recount or hardcode.
+   - The `**周末**` line is required even with zero activity: `**周末**：10-17 Sat · 10-18 Sun — 无活动`.
+   - When `makeup_workdays > 0`, append `（其中 N 天调休上班）` to the 周期 line; those days stay listed under 周末.
+   - Weekend output is not noise: a PR merged or a substantive commit pushed on Sat/Sun must surface somewhere in the report (a 要点 theme when it carries one, otherwise a repo bullet). The 周末 counts must equal `stats.weekend`.
+
+   Copy `stats.by_type` into a **构成** line (`feat 14 · fix 9 · …`), canonical order, omit zero buckets. Skip the line when `stats.prs_merged == 0`. **Copy `stats`; do not recount.**
 
    Then a **仓库表** (markdown's stand-in for the HTML stacked bars). One row per `stats.by_repo` entry, same order. No mermaid, no Unicode `█`. Skip the table when `stats.prs_merged == 0`.
 
@@ -500,8 +518,9 @@ scripts/render_html.py \
 
 - `--markdown` (required) — the synthesized markdown report. Pass `-` to
   read from stdin. The script extracts `<h1>` as report title and parses
-  the header paragraph (`**周期**` / `**作者**` / `**仓库**`) plus the
-  leading blockquote for the summary callout.
+  the header paragraphs (`**周期**` / `**周末**` / `**作者**` / `**仓库**`)
+  plus the leading blockquote for the summary callout. The weekend line
+  feeds a dedicated meta-grid cell (weekend days + weekend PR/commit counts).
 - `--json` (optional) — `collect.py` JSON output. When provided, meta grid
   and type-mix charts are computed from `stats` (or re-derived from
   `github.prs_merged` via `pr_stats.build_stats` if `stats` is missing).

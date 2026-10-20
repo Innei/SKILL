@@ -73,6 +73,8 @@ def md_to_html(text: str) -> str:
 META_PAT_PERIOD = re.compile(r"(\d{4}-\d{2}-\d{2})\s*[~～]\s*(\d{4}-\d{2}-\d{2})")
 META_PAT_WORKDAYS = re.compile(r"(\d+)\s*工作日")
 META_PAT_HOLIDAYS = re.compile(r"(\d+)\s*节假日")
+META_PAT_WEEKENDS = re.compile(r"(\d+)\s*周末")
+META_PAT_WEEKEND_ACT = re.compile(r"合入\s*(\d+)\s*个?\s*PR[、,，]\s*(\d+)\s*次提交")
 META_PAT_REPOS = re.compile(r"仓库\s*(\d+)")
 META_PAT_AUTHOR = re.compile(r"作者\s*([^\s·,，、]+)")
 META_PAT_PRS_MERGED = re.compile(r"合入\s*(\d+)\s*个?\s*PR|(\d+)\s*个\s*PR\s*·|^(\d+)\s*PRs?", re.MULTILINE)
@@ -120,6 +122,16 @@ def extract_header(soup: BeautifulSoup) -> tuple[dict, Optional[str]]:
         meta["workdays"] = int(m.group(1))
     if (m := META_PAT_HOLIDAYS.search(meta_blob)):
         meta["holidays"] = int(m.group(1))
+    if (m := META_PAT_WEEKENDS.search(meta_blob)):
+        meta["weekends"] = int(m.group(1))
+        tail = meta_blob.split("周末", 1)[1]
+        tail = re.split(r"合入|作者|仓库", tail)[0]
+        dates = re.findall(r"\d{1,2}-\d{1,2}", tail)
+        if dates:
+            meta["weekend_dates"] = dates
+    if (m := META_PAT_WEEKEND_ACT.search(meta_blob)):
+        meta["weekend_prs"] = int(m.group(1))
+        meta["weekend_commits"] = int(m.group(2))
     if (m := META_PAT_REPOS.search(meta_blob)):
         meta["repos"] = int(m.group(1))
     if (m := META_PAT_AUTHOR.search(meta_blob)):
@@ -144,6 +156,14 @@ def meta_from_json(collect: dict) -> dict:
         meta["workdays"] = rng["workdays"]
     if "holidays" in rng:
         meta["holidays"] = rng["holidays"]
+    if "weekends" in rng:
+        meta["weekends"] = rng["weekends"]
+    if rng.get("weekend_dates"):
+        meta["weekend_dates"] = [d[5:] for d in rng["weekend_dates"]]
+    weekend_stats = (collect.get("stats") or {}).get("weekend") or {}
+    if weekend_stats:
+        meta["weekend_prs"] = weekend_stats.get("prs_merged", 0)
+        meta["weekend_commits"] = weekend_stats.get("commits", 0)
     gh = collect.get("github", {}) or {}
     active = [r for r, data in gh.items() if any((data.get(k) for k in ("prs_merged", "commits", "prs_open", "issues")))]
     meta["repos"] = len(active)
@@ -320,6 +340,15 @@ def render_meta_grid(meta: dict) -> str:
     if "workdays" in meta:
         unit = f"/ {meta.get('holidays', 0)} 节" if "holidays" in meta else ""
         cells.append(("Workdays", str(meta["workdays"]), unit))
+    if "weekends" in meta:
+        bits = []
+        if meta.get("weekend_dates"):
+            bits.append(" · ".join(meta["weekend_dates"]))
+        if meta.get("weekend_prs"):
+            bits.append(f"{meta['weekend_prs']} PRs")
+        if meta.get("weekend_commits"):
+            bits.append(f"{meta['weekend_commits']} commits")
+        cells.append(("Weekend", str(meta["weekends"]), " · ".join(bits)))
     if meta.get("repos") is not None:
         cells.append(("Repos Active", str(meta["repos"]), ""))
     if "prs" in meta:

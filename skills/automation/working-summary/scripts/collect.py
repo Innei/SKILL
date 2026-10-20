@@ -100,6 +100,11 @@ def main() -> None:
             "days": (end - start).days + 1,
             "workdays": sum(1 for d in breakdown if d["workday"]),
             "holidays": sum(1 for d in breakdown if d["holiday"]),
+            "weekends": sum(1 for d in breakdown if d["weekend"]),
+            "weekend_dates": [d["date"] for d in breakdown if d["weekend"]],
+            "makeup_workdays": sum(
+                1 for d in breakdown if d["weekend"] and d["workday"]
+            ),
             "breakdown": breakdown,
         },
         "config": {
@@ -112,7 +117,10 @@ def main() -> None:
         },
         "github": github_data,
         "linear": linear_data,
-        "stats": build_stats(github_data),
+        "stats": build_stats(
+            github_data,
+            weekend_dates=[d["date"] for d in breakdown if d["weekend"]],
+        ),
     }
     json.dump(result, sys.stdout, ensure_ascii=False, indent=2)
     print()

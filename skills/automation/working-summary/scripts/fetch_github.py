@@ -117,13 +117,20 @@ def _normalize_issue(data: dict, repo: str) -> dict:
 # ---------- per-repo fetchers ----------
 
 def fetch_commits(repo: str, author: str, start: str, end: str) -> list[dict]:
-    path = (
-        f"/repos/{repo}/commits"
-        f"?author={author}&since={start}T00:00:00Z&until={end}T23:59:59Z&per_page=100"
-    )
-    data = _json(gh("api", path), [])
-    if not isinstance(data, list):
-        return []
+    data: list[dict] = []
+    page = 1
+    while True:
+        path = (
+            f"/repos/{repo}/commits"
+            f"?author={author}&since={start}T00:00:00Z&until={end}T23:59:59Z&per_page=100&page={page}"
+        )
+        chunk = _json(gh("api", path), [])
+        if not isinstance(chunk, list) or not chunk:
+            break
+        data.extend(chunk)
+        if len(chunk) < 100:
+            break
+        page += 1
     return [
         {
             "sha": (c.get("sha") or "")[:7],

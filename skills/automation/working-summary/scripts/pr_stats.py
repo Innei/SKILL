@@ -57,9 +57,11 @@ def _ordered(counts: dict[str, int]) -> dict[str, int]:
     return {k: counts[k] for k in CANONICAL if counts.get(k)}
 
 
-def build_stats(github: dict) -> dict:
+def build_stats(github: dict, weekend_dates: list[str] | None = None) -> dict:
+    weekend_set = set(weekend_dates or [])
     total: dict[str, int] = {}
     by_repo: list[dict] = []
+    weekend_prs = 0
     for repo, data in (github or {}).items():
         prs = (data or {}).get("prs_merged") or []
         if not prs:
@@ -69,6 +71,8 @@ def build_stats(github: dict) -> dict:
             bucket = classify_title((pr or {}).get("title") or "")
             counts[bucket] = counts.get(bucket, 0) + 1
             total[bucket] = total.get(bucket, 0) + 1
+            if ((pr or {}).get("mergedAt") or "")[:10] in weekend_set:
+                weekend_prs += 1
         by_repo.append(
             {
                 "repo": repo,
@@ -76,9 +80,20 @@ def build_stats(github: dict) -> dict:
                 "by_type": _ordered(counts),
             }
         )
+    weekend_commits = sum(
+        1
+        for data in (github or {}).values()
+        for commit in ((data or {}).get("commits") or [])
+        if (commit.get("date") or "")[:10] in weekend_set
+    )
     by_repo.sort(key=lambda row: (-row["prs"], row["repo"]))
     return {
         "prs_merged": sum(row["prs"] for row in by_repo),
         "by_type": _ordered(total),
         "by_repo": by_repo,
+        "weekend": {
+            "prs_merged": weekend_prs,
+            "commits": weekend_commits,
+            "dates": sorted(weekend_set),
+        },
     }
