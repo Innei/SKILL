@@ -76,15 +76,43 @@ Full rules, frames and nesting cases are in `layout.md`. In short:
 
 - The 40 pt gap is the active **division** reserved region; it disappears when
   flat. `UIArrangementViewController` handles it with no app code.
-- The hinge angle was not measured. **SDK:** `UIHingeInteraction(updateHandler:)`
-  delivers `UIHingeInteractionUpdate.hinge` (`nil` on devices without a hinge)
-  with `status` (`unknown`, `closed`, `partiallyOpen`, `fullyOpen`) and `angle`
-  in radians. Apple's guidance is to use it for effects, not layout.
+- **SDK:** `UIHingeInteraction(updateHandler:)` delivers
+  `UIHingeInteractionUpdate.hinge` (`nil` on devices without a hinge) with
+  `status` (`unknown`, `closed`, `partiallyOpen`, `fullyOpen`) and `angle` in
+  radians. Apple's guidance is to use it for effects, not layout.
 - **SDK:** `UIView.reservedRegions(kind:options:)` with kinds `.division`
   (the fold, active only when partially open) and `.occlusion` (camera, active
-  only while it is in use); `.includeInactive` returns the fold even when
-  flat. Each region has `frame`, `margins` and `isActive`. Not called during
-  the measurement run, so its values are **unverified**.
+  only while it is in use). Each region has `frame`, `margins` and `isActive`.
+  Measured: on the inner display, `.division` with `.includeInactive` returns
+  the fold at x 455.5–495.5 even while the hinge reports `closed`; the default
+  query returns it only while `partiallyOpen`.
+
+### Hinge angle and the inner display (measured, simulator)
+
+The angle at which the app moves to the inner display depends on how the
+hinge got there. Do not hard-code it.
+
+| Path | Hinge reports | App window |
+| --- | --- | --- |
+| Closed → jump to 84° | `closed` | outer (466) |
+| Closed → jump to 85–86° | `partiallyOpen` 86.2° | inner (951) |
+| Closed → 40, 70, 85 … 156° in steps (2.5 s each) | `closed` the whole way | stays on outer |
+| … continuing to 165.6° | `partiallyOpen` | moves to inner |
+| Open → jump down to 84° / 86° | | outer / inner |
+| Open → closing in small steps | | inner until ≈ 20° |
+| 180° | `fullyOpen` | inner |
+
+- Each hinge update reaches the app **before** the window moves: the first
+  update at the new angle still sees the outer bounds (466), and a second
+  layout pass follows on the inner bounds (951).
+- `sim-use ios fold <n>` lands near, not on, the requested angle (85 → 85.3,
+  130 → 127.8, 170 → 165.6).
+- An angle-driven effect that should begin "when the inner display lights
+  up" must capture the angle at the moment the view first lands on the inner
+  display, and interpolate from there to 180°. Gate on "is on the inner
+  display" (`.division` with `.includeInactive` inside the view's bounds), not
+  on `status == .partiallyOpen`. Verified: a list moved from the right half
+  (x 495.5, 371.5 pt wide) at 86.2° to centered (x 133.5, 600 pt) at 180°.
 
 ## Fold and unfold behavior
 
@@ -169,9 +197,8 @@ verified; see `react-native.md`.
 
 Later:
 
-- Hinge `angle` and `status` values from `UIHingeInteraction`.
-- `reservedRegions(kind:options:)` frames and margins for `.division` and
-  `.occlusion`.
+- The hinge angle path on hardware, and during a continuous Device Hub drag.
+- `reservedRegions(kind:options:)` margins, and `.occlusion` frames.
 - `UISplitArrangement` `.absolute`, `.intrinsic`, minimum/maximum and
   `layoutPriority` (only `.fractional(0.35)` was run).
 - Postures other than closed, half-open book and flat; the outer display

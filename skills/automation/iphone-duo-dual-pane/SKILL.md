@@ -40,6 +40,10 @@ Facts marked **unverified** still need a run.
   `ExpoRoot`; build pane stacks on react-native-screens `ScreenStack` or real
   `@react-navigation/native`.
 - A native tab bar that touches the column becomes a vertical rail inside it.
+- The angle at which the app reaches the inner display is path-dependent
+  (85° on a jump from closed, ≈ 165° when opened in small steps, during which
+  the hinge keeps reporting `closed`). Hinge-driven effects capture the angle
+  on arrival and gate on the `.includeInactive` division, never on `status`.
 - Dismiss sheets presented from secondary before folding; dismissing one while
   secondary is hidden leaves a ghost presentation that blocks later modals.
 
