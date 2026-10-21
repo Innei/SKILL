@@ -101,12 +101,18 @@ hinge got there. Do not hard-code it.
 | Open → jump down to 84° / 86° | | outer / inner |
 | Open → closing in small steps | | inner until ≈ 20° |
 | 180° | `fullyOpen` | inner |
+| Device Hub drag from closed (continuous, ≈ 30 updates/s) | `partiallyOpen` from 20.5° | inner from 27.9° |
+| Device Hub drag, top of the drag | last update 174.7°, then `fullyOpen` 180° | inner |
+| Device Hub drag closing | `partiallyOpen` down to 85.3°, `closed` 84.7° | outer below ≈ 80° |
 
 - Each hinge update reaches the app **before** the window moves: the first
   update at the new angle still sees the outer bounds (466), and a second
   layout pass follows on the inner bounds (951).
 - `sim-use ios fold <n>` lands near, not on, the requested angle (85 → 85.3,
   130 → 127.8, 170 → 165.6).
+- A real drag reaches the inner display far earlier (≈ 28°) than an angle
+  jump does (85°). There is no update between ≈ 174.7° and 180°, so an effect
+  that ends at 180° snaps on the last step; end it at ≈ 175°.
 - An angle-driven effect that should begin "when the inner display lights
   up" must capture the angle at the moment the view first lands on the inner
   display, and interpolate from there to 180°. Gate on "is on the inner
