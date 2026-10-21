@@ -36,15 +36,23 @@ Facts marked **unverified** still need a run.
   splash `loadingView` replaced, its own `SafeAreaProvider`, its own
   `AppRegistry` root. Never a second `ExpoRoot`. Details in
   `references/react-native.md`.
+- On Expo SDK 58, expo-router's vendored navigation container throws outside
+  `ExpoRoot`; build pane stacks on react-native-screens `ScreenStack` or real
+  `@react-navigation/native`.
+- A native tab bar that touches the column becomes a vertical rail inside it.
+- Dismiss sheets presented from secondary before folding; dismissing one while
+  secondary is hidden leaves a ghost presentation that blocks later modals.
 
 ## Verifying on the simulator
 
-1. Fold and unfold need a person; no CLI changes posture. Ask, then wait.
+1. Set posture with `sim-use ios fold closed|open|half --device <udid>` and
+   orientation with `sim-use ios rotate landscape-left`; check with
+   `sim-use ios fold --device <udid>`.
 2. Find the display UUID with `xcrun simctl io <udid> enumerate` (inner
    `Default width: 2007`, outer `1398`) and screenshot with
    `--display=<UUID>`. UUIDs change on every boot.
-3. Read frames with `axe describe-ui`; drive flows with deep links, not
-   `axe tap`.
+3. Read frames with `axe describe-ui`; drive flows with Hermes CDP calls or
+   deep links, not `axe tap`.
 4. Record new measurements in `references/device.md`, replacing the
    **unverified** marker they resolve.
 

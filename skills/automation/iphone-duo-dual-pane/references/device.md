@@ -136,9 +136,15 @@ library versions they were measured with are in `react-native.md`.
 
 ## Tooling on the Duo simulator
 
-- No CLI changes posture. `simctl` and `axe` have no fold or hinge control, and
-  the Xcode 27.1 bundle at `/Applications/Xcode-27.1.0.app` contains no
-  `Simulator.app`. A person has to fold and unfold.
+- Change posture with `sim-use` (0.16.0+; it drives devicectl like Device
+  Hub's posture buttons): `sim-use ios fold closed|open|half|<0-180> --device
+  <udid>` (`half` = 130°), `sim-use ios fold --device <udid>` to report the
+  active display and orientation, and `sim-use ios rotate
+  landscape-left|landscape-right|portrait|portrait-upside-down`. `simctl` and
+  `axe` have no fold or hinge control, and the Xcode 27.1 bundle contains no
+  `Simulator.app`.
+- A booted Duo may come up unfolded **portrait-upside-down** (669 × 951). Rotate
+  to `landscape-left` before measuring landscape numbers.
 - Screenshots need the display: `xcrun simctl io <udid> screenshot
   --display=<UUID> out.png`. Look up the UUID with `simctl io <udid> enumerate`
   (inner: `Default width: 2007`, outer: `Default width: 1398`). The UUIDs

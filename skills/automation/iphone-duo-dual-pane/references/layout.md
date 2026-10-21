@@ -65,6 +65,19 @@ safe-area column as 38 × 38 buttons, stacked from the top:
 - **Bottom toolbar**: leading items stay leading (`{520.7, 602, …}`); the
   trailing item is aligned to the column's x (`{884, 602, 38, 38}`; outer
   display `{399, 611, 38, 38}`). Pane `safeAreaInsets.bottom` is 82.
+- **Tab bar** (`UITabBarController`, measured through expo-router native tabs
+  on 2026-10-21): when the tab bar touches the column it becomes a **vertical
+  rail inside the column**, bottom-aligned. Outer display, tab items
+  `{396, 444, 44, 58}`, `{396, 494, …}`, `{396, 544, …}`, `{396, 594, …}`
+  (50 pt pitch); inner display without an arrangement, a capsule at
+  x ≈ 880–927, y ≈ 433–645 (read from a screenshot; the accessibility tree did
+  not expose the items there). The navigation bar's trailing item (Search)
+  takes column slot 1 (`{884, 129}` inner, `{399, 179}` outer). Tab content
+  runs under the column unless it applies the right inset (the measured list
+  rows were 911 pt wide inner, 426 pt outer). The measured app also applies a
+  0.82 `sublayerTransform` to its tab bar, so treat item sizes as approximate.
+  In a pane that does not touch the column, the tab bar stays a bottom bar
+  (primary at half-open: `{0, 586, 456, 83}`).
 
 ### Panes that do not touch the column
 
