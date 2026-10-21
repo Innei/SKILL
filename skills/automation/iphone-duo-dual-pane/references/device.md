@@ -113,6 +113,8 @@ hinge got there. Do not hard-code it.
 - A real drag reaches the inner display far earlier (≈ 28°) than an angle
   jump does (85°). There is no update between ≈ 174.7° and 180°, so an effect
   that ends at 180° snaps on the last step; end it at ≈ 175°.
+- Prefer switching layout by posture over interpolating by angle (see
+  `native-shell.md`); a design review rejected continuous angle motion.
 - An angle-driven effect that should begin "when the inner display lights
   up" must capture the angle at the moment the view first lands on the inner
   display, and interpolate from there to 180°. Gate on "is on the inner

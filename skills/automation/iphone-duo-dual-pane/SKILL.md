@@ -46,6 +46,13 @@ Facts marked **unverified** still need a run.
   on arrival and gate on the `.includeInactive` division, never on `status`.
 - Dismiss sheets presented from secondary before folding; dismissing one while
   secondary is hidden leaves a ghost presentation that blocks later modals.
+- Never position React views with a native transform alone: Pressable hit
+  regions come from Yoga, so slightly moving taps get cancelled. Report frames
+  to JS, set `left`/`width`, animate by FLIP.
+- There is no synchronous hinge getter, and fold / unfold emit transitional
+  layouts (old view size, new window or insets). Hold the settled layout
+  through them, and narrow the folded column from 382 pt to the book page
+  width (371.5 pt) so the right page never re-wraps. Details in `references/native-shell.md`.
 
 ## Verifying on the simulator
 
@@ -67,6 +74,9 @@ Facts marked **unverified** still need a run.
 - `references/layout.md`: navigation controller outside and inside
   `UIArrangementViewController`, outer pushes, which display shows what after
   fold and unfold, and the boundary rules for nesting.
+- `references/native-shell.md`: app-owned UIKit navigation containers
+  around React views, interaction pitfalls (vertical bar, sheets, swipe-back,
+  hit testing), and switching layout on fold / unfold without jumps.
 - `references/react-native.md`: hosting RN surfaces, react-native-screens bars
   and presentations, safe-area reporting, and the **exact library versions**
   the results are locked to. If `react-native-screens`, `react-native`,
