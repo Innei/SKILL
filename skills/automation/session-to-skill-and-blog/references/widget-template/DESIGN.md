@@ -108,3 +108,10 @@ control gap `8px`. Stick to the 4px grid.
 - [ ] Focus ring, reduced-motion, ≥32px touch targets.
 - [ ] Malformed-props fallback renders a message, not a blank.
 - [ ] `propsSchema` in the catalog matches what `apply()` actually reads.
+- [ ] Post-specific content (labels, data, copy) arrives through props with
+      defaults, so other posts can reuse the widget unchanged.
+- [ ] Every prop in `propsSchema` has a `title`, a `description` and a
+      `default`; the editor turns `string`, `enum`, `number`, `integer` and
+      `boolean` props into the insert form.
+- [ ] The catalog `description` says what the widget shows and when to use
+      it; writers and agents choose from that line.

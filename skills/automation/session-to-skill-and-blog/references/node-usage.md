@@ -93,11 +93,13 @@ teaches in a technical post:
 Discipline still applies: one widget that nails the core lesson beats three
 gimmicks; every widget must come from the catalog (below); and a widget
 that merely *displays* without meaningful input is a figure wearing a
-costume — use `<img>`/`<excalidraw>` instead. When the catalog lacks the
-right widget for a scenario above, say so to the user — that is the signal to
-commission a new cataloged component (start from
-`widget-template/template.mjs` + `widget-template/DESIGN.md`), not to force
-a static workaround silently.
+costume — use `<img>`/`<excalidraw>` instead. Cataloged widgets are reused
+across posts: a widget that takes its content through props (labels, data,
+steps) serves every later post with the same shape of lesson, so look for one
+that fits by shape, not by topic. When the catalog lacks the right widget for
+a scenario above, say so to the user — that is the signal to commission a new
+reusable component (start from `widget-template/template.mjs` +
+`widget-template/DESIGN.md`), not to force a static workaround silently.
 
 ## Interactive embeds (`<dynamic>`) — catalog-gated
 
@@ -114,10 +116,28 @@ curl -fsS "${MXS_API_URL}/s/dynamic-widgets-catalog?_t=$(date +%s)"
   recommended `initial-height`, validate props against its `propsSchema`.
   Full tag rules: litexml-authoring reference `nodes-extensions.md` →
   "Embedded interactive components".
+- Use current versions only. An entry whose `url` appears as another
+  entry's `parentUrl` has been superseded; skip it. URLs in `parentUrl` and
+  `previousUrls` are older versions that existing posts still render, never
+  a choice for new content.
 - 404 / empty → no widgets deployed. Do **not** emit `<dynamic>`; fall back
   to `<poll>` (votes), `<excalidraw>` (diagrams), or `<video>` (demos), and
   mention the gap to the user.
 - Never invent, guess, or adapt a component URL.
+
+Registering a widget (only after the user agrees to commission one):
+
+- New widget → the admin's Dynamic components page (`#/dynamic-components`,
+  Register → upload the `.js`), or the admin write agent, which drafts,
+  previews and registers it in one flow. Fill `description` with what it
+  shows and when to use it, and `propsSchema` with every prop: `string`,
+  `enum`, `number`, `integer` and `boolean` properties with `title`,
+  `description` and `default` become the form writers fill in when they
+  insert it from the editor's `/dynamic` picker.
+- Changed widget → the entry's Source tab, "Save as new version". It
+  uploads a new immutable file and moves the entry to it; posts already
+  using the old URL keep it. Never overwrite an uploaded widget file or
+  hand-edit the catalog snippet's URLs.
 
 ## Quantity discipline
 

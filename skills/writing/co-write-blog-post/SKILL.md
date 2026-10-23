@@ -131,7 +131,8 @@ new title *and* a smoother paragraph — runs this loop once per request):
    | Image / screenshot | "Local assets" below, then `image-meta.mjs` on the local file |
    | Excalidraw scene, chart data, any JSON or file the article references | "Local assets" below |
    | Interactive widget or special node | `$REFS/node-usage.md` |
-   | Numbers compared before/after (timings, sizes) | `before-after-bars` entry in the `dynamic-widgets-catalog` snippet (`mxs snippet get dynamic-widgets-catalog`); insert a `<dynamic>` node with its exact `url` and props instead of a table |
+   | Numbers compared before/after (timings, sizes) | `before-after-bars` entry in the `dynamic-widgets-catalog` snippet (`mxs snippet get dynamic-widgets-catalog`); insert a `<dynamic>` node with its current `url` and props instead of a table |
+   | Any other interactive explanation | `$REFS/node-usage.md` › catalog rule: reuse a current catalog widget through its props; if none fits, tell the human instead of writing one inline |
    | Title, slug, tags, category | edit `<meta>` in place; the server adopts your envelope and later autosaves keep it (stdout: `+0 ~0 -0 blocks`) |
 
 4. Apply it with **one in-place edit** (Claude Code `Edit`, Codex `apply_patch`)
