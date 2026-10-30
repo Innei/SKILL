@@ -11,21 +11,22 @@ description: >
 
 # co-write-blog-post
 
-The human writes in the browser; the agent edits the same LiteXML file when
-asked. `mxs author` keeps both in sync through a Loro CRDT: browser edits
-autosave to the file, in-place agent edits are merged three-way and streamed
-into the editor behind an **Agent** caret, and history persists in
-`<file>.loro`. `mxs skill get commands-author` is the authoritative contract;
-read it once per session.
+The human writes in the Mix Space admin editor in the browser; the agent edits
+the same draft when asked. Both sit in the draft's collaboration room on the
+server: `mxs draft cat` reads the live draft, `mxs draft patch` applies one
+SEARCH/REPLACE edit that lands in the open editor at once, behind a cursor
+named after the agent, as one undoable row in the draft's history. There is
+no local file and no local editor process. `mxs skill get commands-draft` is
+the authoritative contract; read it once per session.
 
 ## Capability contract
 
 - **Outcome:** a Mix Space draft (or post, after explicit approval) whose prose
   the human wrote, with agent contributions made only on request.
-- **Preconditions:** `mxs` whose `commands-author` chapter mentions `.loro`
-  (Loro-synced author); `mxs auth whoami` succeeds before publishing; the
-  `session-to-skill-and-blog` skill is installed (its references and scripts
-  are reused, not copied).
+- **Preconditions:** `mxs` whose `mxs draft --help` lists `cat` and `patch`;
+  `mxs auth whoami` succeeds; the server's admin URL is configured (the
+  draft link comes from it); the `session-to-skill-and-blog` skill is
+  installed (its references and scripts are reused, not copied).
 - **Boundaries:** not for turning a finished engineering session into a post
   (use `session-to-skill-and-blog`); never writes the human's prose
   unprompted; never publishes without an explicit yes.
@@ -46,8 +47,6 @@ do
 done
 [ -n "$S" ] || { echo "error: session-to-skill-and-blog not installed" >&2; exit 1; }
 REFS="$(dirname "$S")/references"
-DRAFTS=$(jq -r '.blog_drafts_dir // "~/blog-drafts"' ~/.config/innei-skills/config.json 2>/dev/null || echo "~/blog-drafts")
-DRAFTS="${DRAFTS/#\~/$HOME}"
 ```
 
 ## Workflow
@@ -63,25 +62,19 @@ then wait:
 2. 文章用什么语言？ — 中文 / English / 其他
 
 The topic comes from the trigger message. Skip a question the trigger already
-answered. When resuming, read the answers from `session.json` instead of asking.
+answered. When resuming, infer both from the draft's existing text and ask
+only if it has none.
 
-### [1] Open or resume the draft file
+### [1] Create or resume the draft
 
-Derive a kebab-case `<slug>` from the topic. The file is
-`$DRAFTS/<slug>/article.xml` — never `/tmp`, because `article.xml.loro` holds
-the history the human can restore later. Beside it, `session.json` carries
-state across agent sessions; update it whenever a field changes:
-
-```json
-{ "narrator": "site-owner", "language": "zh", "aiGen": [8], "draftId": null, "paywall": null }
-```
-
-`aiGen` accumulates what you actually contributed (see [4]); `draftId` is set
-once `create-draft.sh` returns.
-
-- Resuming ("继续写…"): list `$DRAFTS/*/article.xml` with their `<title>`,
-  pick the match, ask in one line if more than one fits. Never recreate it.
-- New: write the file once, using the topic as the working title:
+- Resuming ("继续写…"): `mxs draft list` and pick the draft by title; ask in
+  one line if more than one fits. Never create a second draft for the same
+  article. If the human's tab is closed, point them at the draft in the
+  admin Drafts list, then go to [2].
+- New: write a minimal envelope to a scratch file (your session scratch
+  directory, not the cwd) with the topic as the working title and a
+  kebab-case slug, then create the draft with the AI disclosure set to
+  handmade:
 
 ```xml
 <mxpost>
@@ -94,160 +87,144 @@ once `create-draft.sh` returns.
 </mxpost>
 ```
 
-### [2] Start the editor
-
-First check that no editor already serves this file
-(`pgrep -fl "mxs.*author.*<slug>/article.xml"`); if one does, ask the human
-whether its tab is still open instead of starting a second process on the same
-file. Otherwise start it with your runtime's background mode (Claude Code:
-Bash `run_in_background`), keeping its output in a log beside the draft:
-
 ```bash
-mxs author --no-open "$DRAFTS/<slug>/article.xml" > "$DRAFTS/<slug>/author.log" 2>&1
+bash "$S/create-draft.sh" "$SCRATCH/article.xml" --ai-gen '-1'
 ```
 
-Give the human the URL printed in `author.log` in one line, and **stop** until
-they speak. Outline ideas, if any, go in chat, not in the file.
+The script prints `{ ok: true, id }` and an `opening admin: <url>` line.
+Remember the id for the session; the scratch file is not used again.
 
-### [3] One request, one edit
+### [2] Hand over the editor
 
-For every request while the editor runs (a message with several requests —
-new title *and* a smoother paragraph — runs this loop once per request):
+Give the human the admin URL in one line and **stop** until they speak.
+Outline ideas, if any, go in chat, not in the draft.
 
-1. Re-read the file. The browser has been autosaving; anything in context is stale.
-2. Locate the target by quoting its heading or paragraph text back. When the
-   request points at the human's selection ("选中的这段", "这里", "this bit"),
-   read `<file>.selection.json` first and match `blocks[].id` to the `id`
-   attributes in the file; it keeps the last selection after the editor loses
-   focus, so check `updatedAt` is recent. If the file is missing (older `mxs`)
-   or the request still does not pin a spot (e.g. which paragraph a diagram
-   follows), ask in one line before editing.
-3. Load only the reference the request needs:
+### [3] One request, one patch
+
+For every request (a message with several requests — new title *and* a
+smoother paragraph — runs this loop once per request):
+
+1. Read the live draft: `mxs draft cat <id>`. Anything in context is stale;
+   the human has been typing. For a long draft start with `--outline` and
+   read the section you need. When the request points at the human's
+   selection ("选中的这段", "这里", "this bit"), run
+   `mxs draft cat <id> --selection`; it returns the blocks they last
+   selected, even after the editor lost focus. If it says there is no
+   selection, or the request still does not pin a spot (e.g. which paragraph
+   a diagram follows), ask in one line before editing.
+2. Load only the reference the request needs:
 
    | Request | Load |
    | ------- | ---- |
-   | Diagram (画图, 流程图, 时序图) | `$REFS/visuals.md`, then LiteXML syntax via `bash "$S/load-litexml.sh"`; store Excalidraw scenes as files per "Local assets", overriding the inline CDATA rule in `visuals.md` |
-   | Rewrite, tighten, continue a passage | `$REFS/writing-style.md` with the recorded narrator |
-   | Image / screenshot | "Local assets" below, then `image-meta.mjs` on the local file |
-   | Excalidraw scene, chart data, any JSON or file the article references | "Local assets" below |
+   | Diagram (画图, 流程图, 时序图) | `$REFS/visuals.md`, then LiteXML syntax via `bash "$S/load-litexml.sh"`; Excalidraw scenes go in as uploaded files per "Assets" |
+   | Rewrite, tighten, continue a passage | `$REFS/writing-style.md` with the narrator from [0] |
+   | Image / screenshot | "Assets" below |
+   | Excalidraw scene, chart data, any JSON or file the article references | "Assets" below |
    | Interactive widget or special node | `$REFS/node-usage.md` |
    | Numbers compared before/after (timings, sizes) | `before-after-bars` entry in the `dynamic-widgets-catalog` snippet (`mxs snippet get dynamic-widgets-catalog`); insert a `<dynamic>` node with its current `url` and props instead of a table |
    | Any other interactive explanation | `$REFS/node-usage.md` › catalog rule: reuse a current catalog widget through its props; if none fits, tell the human instead of writing one inline |
-   | Title, slug, tags, category | edit `<meta>` in place; the server adopts your envelope and later autosaves keep it (stdout: `+0 ~0 -0 blocks`) |
+   | Title, slug, tags, category, summary | the `<meta>` lines in `cat` output, patched like any block; category by an existing slug from `mxs category list --output llm` |
 
-4. Apply it with **one in-place edit** (Claude Code `Edit`, Codex `apply_patch`)
-   touching only the requested blocks.
-5. Wait for the result line — edits stream in over a few seconds. Count
-   `agent edit` lines in `$DRAFTS/<slug>/author.log` before editing, then wait
-   (up to ~15 s) for the count to grow and read the last line:
-   - `agent edit merged: +a ~m -d blocks` → re-read the changed block in the
-     file: LiteXML drops unknown tags silently, so a mistyped node vanishes
-     while the log still says merged.
-   - `agent edit rejected: …` → the envelope or a tag pair is broken (the
-     message names it); fix the file in place and retry.
-   - `agent edit failed: …` → the merge threw; report the line to the human
-     and do not retry blindly.
+3. Apply it with **one** `mxs draft patch <id>` touching only the requested
+   blocks. Copy each SEARCH from the `cat` output you just read, tags and
+   `id` attributes included; to insert a block, use its neighbour as SEARCH
+   and repeat it in REPLACE:
 
-   In Claude Code, run the wait as a background `until` loop or a Monitor, not
-   a foreground sleep. Record a new contribution kind in `session.json` › `aiGen`.
+```bash
+mxs draft patch <id> --message "rewrite intro" <<'EOF'
+<<<<<<< SEARCH
+<p id="hPzZ7MhV">exact text copied from cat</p>
+=======
+<p id="hPzZ7MhV">replacement</p>
+>>>>>>> REPLACE
+EOF
+```
+
+4. Read the exit code:
+   - `0` and `applied: +a ~m -d blocks` → done; the human already sees it.
+   - `1` → the human changed that text after your `cat`. The error shows the
+     block's current content: redo the edit on top of it with a fresh SEARCH.
+     Never resend the same SEARCH. A second failure → tell the human.
+   - `5` → the patch itself is malformed, or a replacement uses a tag the
+     editor would drop (the message names it). Fix the block and retry.
+   - `3` / `4` / `6` → not signed in, network or write gate, server
+     rejected. Report the line; do not retry blindly.
+5. When the edit is a new kind of contribution, record it in the draft's
+   disclosure with a patch on `<ai-gen>` (see [4] step 3 for the values),
+   e.g. `<ai-gen>-1</ai-gen>` → `<ai-gen>[8]</ai-gen>` after the first
+   diagram. The draft is the only place that state lives.
 6. Reply in one or two lines (what changed, where), then stop.
 
 Suggestions the human did not ask to apply — alternative wording, a missing
 transition, a follow-up sentence a diagram needs — go in chat for the human
 to accept.
 
-#### Local assets
+#### Assets
 
-A draft stays local until [4]. Nothing the article references is uploaded
-while drafting: images, Excalidraw scenes, chart data, JSON, attachments.
-`$REFS/visuals.md` › attachments describes the upload itself; in this skill
-it runs only in [4] step 4.
+The editor is online, so anything the article references is uploaded when it
+is inserted. Upload only what the human asked to insert.
 
-- Save each asset as `$DRAFTS/<slug>/assets/<name>` and reference it by that
-  relative path (`src="assets/shot.jpg"`). `mxs author` serves files beside
-  the draft, so the editor previews them (needs an `mxs` whose author server
-  has the draft-directory fallback; older builds show a broken image).
-- Excalidraw scenes are files too: write the scene JSON to
-  `assets/<name>.excalidraw` and reference it as
-  `<excalidraw>assets/<name>.excalidraw</excalidraw>`, never as inline CDATA.
-  The editor fetches the path from the draft directory, and a scene the human
-  edits in the browser is saved back as a new `assets/<name>-<hash>.excalidraw`
-  (needs an `mxs` built with `@haklex/rich-ext-excalidraw` newer than 0.46.3;
-  older builds render the path as an empty diagram, so keep the scene inline
-  there and still turn it into a file in [4] step 4).
-- Images still need `width`, `height`, `thumbhash`: run `image-meta.mjs --xml`
-  on the local file (cwd = a project with `sharp` + `thumbhash`, e.g. mx-core).
-- Never upload to make an asset render in the editor.
+- Images: run `image-meta.mjs --xml` on the local file first (cwd = a
+  project with `sharp` + `thumbhash`, e.g. mx-core) for `width`, `height`,
+  `thumbhash`, then `mxs file upload <path> --type image` and use the URL.
+- Excalidraw scenes, chart data, JSON, attachments: write the file to your
+  scratch directory, `mxs file upload <path> --type file`, and reference the
+  URL (`<excalidraw>https://…/scene.excalidraw</excalidraw>`), never an
+  inline CDATA body.
+- Always upload **without** `--silent` and read the `url:` line. The server
+  renames every file, and neither `--silent` output nor `mxs file list` gives
+  the URL back; an upload whose URL was not captured is an orphan in object
+  storage.
 
 ### [4] Finish
 
-When the human says 写完了 / done (for a bare "更新草稿" on a draft that already
-has a `draftId`, skip to step 4 with the `aiGen` already in `session.json`):
+When the human says 写完了 / done:
 
-1. Read `article.xml.diff` only if you need to know what the human changed.
-2. Run the no-ai-slop detect sweep (`bash "$S/load-no-ai-slop.sh"`) and list
-   findings in chat; the human edits in the browser. Never auto-rewrite.
+1. `mxs draft cat <id>` for the final state. There is no diff file; compare
+   with what you wrote only if you need to know what the human changed.
+2. Run the no-ai-slop detect sweep (`bash "$S/load-no-ai-slop.sh"`) on that
+   output and list findings in chat; the human edits in the browser or asks
+   you to patch a specific one. Never auto-rewrite.
 3. Wait until the human says the slop fixes are done, then propose the AI
-   disclosure from `session.json` › `aiGen` and let the human confirm: `-1`
-   handmade (agent changed nothing), `0` assist (rewrote or drafted passages),
-   `4` title, `8` illustration (diagrams or images). Values combine, e.g. `'[0,8]'`.
-4. Upload local assets, only now: for each `assets/…` reference run
-   `mxs file upload "$DRAFTS/<slug>/assets/<name>" --type image|file` **without**
-   `--silent` and read the `url:` line. The server renames every file, and
-   neither `--silent` output nor `mxs file list` gives the URL back; an upload
-   whose URL was not captured is an orphan in object storage. Rewrite all
-   references in one in-place edit and wait for `agent edit merged`.
-   Every `<excalidraw>` must end as an uploaded `.excalidraw` file
-   (`--type file`): write any inline body (a scene the human drew in the
-   browser starts inline) to `assets/<name>.excalidraw` first, then upload.
-   Replace only the first line of the body with the URL; a JSON delta on the
-   following lines stays as it is.
-5. Fill `<category>` (existing slug from `mxs category list --output llm`) and
-   `<tags>` in place, then follow `$REFS/publish-flow.md`:
-   - no `draftId` yet → "Create" with
-     `bash "$S/create-draft.sh" "$DRAFTS/<slug>/article.xml" --ai-gen '<value>'`,
-     and store the returned id in `session.json`;
-   - `draftId` exists (the human kept writing after a draft was made) →
-     `mxs draft update <draftId> --file …`, then re-attach the whole meta:
-     the confirmed `aiGen` (not `2`) plus any `paywall` recorded in
-     `session.json`, e.g. `--meta '{"aiGen":[0,8],"paywall":{"previewBlocks":37}}'`.
-   - Paywall position ("设置付费墙位置") → `meta.paywall.previewBlocks` counts
-     top-level blocks shown free. Count root children of the server draft
-     (`mxs draft get <id> --json`), offer section boundaries as options, set it
-     with `mxs draft update <id> --meta` (keeping `aiGen`), and store it in
-     `session.json` › `paywall`. The paywall only applies once the draft is
-     premium: `mxs draft update <id> --premium true` (needs `mxs` ≥ 0.21.5;
-     older builds have no flag, and the human toggles it in the admin premium
-     panel). `--meta` replaces the whole meta, so pass every key the server
-     draft already has (`aiGen`, `paywall`, and a `cover` the human set).
-   Keep the editor running; later browser edits reach the server only through
-   this step. Publish only after the human approves the draft preview.
+   disclosure from the draft's `<ai-gen>` and let the human confirm: `-1`
+   handmade (agent changed nothing), `0` assist (rewrote or drafted
+   passages), `4` title, `8` illustration (diagrams or images). Values
+   combine, e.g. `[0,8]`. Patch `<ai-gen>` to the confirmed value.
+4. Make sure `<category>` holds an existing slug and `<tags>` are filled
+   (patch them), then follow `$REFS/publish-flow.md` for publishing.
+5. Paywall position ("设置付费墙位置") → `meta.paywall.previewBlocks` counts
+   top-level blocks shown free. Count them from `mxs draft cat <id> --outline`,
+   offer section boundaries as options, and patch the `<paywall>` line (add
+   it after `<ai-gen>` if missing: `<paywall>{"previewBlocks":37}</paywall>`).
+   The paywall only applies once the draft is premium:
+   `mxs draft update <id> --premium true` (needs `mxs` ≥ 0.21.5; older builds
+   have no flag, and the human toggles it in the admin premium panel).
+
+Publish only after the human approves the draft preview.
 
 ## Failure boundaries
 
 | Mistake | Fix |
 | ------- | --- |
-| Draft under `/tmp` or the cwd | `$DRAFTS/<slug>/article.xml`; the `.loro` history must survive reboots. |
-| Inline Excalidraw JSON in the draft that reaches the server | Scenes live in `assets/*.excalidraw`; [4] step 4 uploads each and leaves only URLs in the article. |
-| Uploading images, diagrams or data while drafting | Keep them in `$DRAFTS/<slug>/assets/`; upload only in [4] step 4. A draft abandoned mid-way must leave nothing online. |
+| Editing from a `cat` read several turns ago | `cat` again right before every patch; the human keeps typing. |
+| Resending a SEARCH after exit `1` | The text changed: rebuild the edit from the current block shown in the error. |
+| `mxs draft update --file` while the human has the editor open | Overwrites the whole draft over their edits; use `patch`. |
+| Uploading files nobody asked to insert | Upload only on insertion; a draft abandoned mid-way leaves only what it shows. |
+| Inline Excalidraw JSON in the draft | Upload the scene with `--type file` and reference the URL. |
 | `mxs file upload --silent`, then looking for the URL | Upload without `--silent` and read `url:`; the server-side name is random and not recoverable. |
-| Re-asking intake on resume, or forgetting contributions | Read and update `session.json`. |
-| Second `mxs author` on a file already being served | `pgrep` first; two processes fight over one file. |
-| Recreating a draft that exists | Resume it; the file and its history are the human's work. |
-| `Write` of the whole file, or editing from a copy read minutes ago | Re-read, then one in-place edit; a stale base reads as deleting the human's new text. |
+| Forgetting contributions on a resumed draft | Read and patch `<ai-gen>` in the draft. |
+| Creating a second draft for an article that exists | `mxs draft list` and resume it. |
 | Filling the blank page with a full draft or outline | Only write what was asked; offer outlines in chat. |
 | Rewriting neighbouring blocks "while there" | Touch only the requested blocks. |
-| Stopping the editor to edit `<meta>` | Meta edits are live; edit in place. |
-| Following `publish-flow.md`'s old "do not rewrite while running" wording | The live contract is `mxs skill get commands-author`. |
 | Publishing on 写完了 | 写完了 starts the finish sweep; publishing needs an explicit yes. |
-| `aiGen=2` on a co-written post | Pass `--ai-gen` with the confirmed value. |
+| `aiGen=2` on a co-written post | Patch `<ai-gen>` to the confirmed value. |
 
 ## Verification
 
-- [ ] Intake answers recorded (or taken from the trigger) before the file was created.
-- [ ] Draft lives at `$DRAFTS/<slug>/article.xml` with an up-to-date `session.json`; an existing draft was resumed, not recreated.
-- [ ] Every agent change was one in-place edit followed by `agent edit merged` on stdout.
+- [ ] Intake answers recorded (or taken from the trigger or the draft) before editing.
+- [ ] One draft per article; a resumed draft was not recreated.
+- [ ] Every agent change was one `mxs draft patch` built from a fresh `cat`, with exit `0`.
 - [ ] No prose was added to the article without a request.
-- [ ] No asset was uploaded before [4] step 4, and every uploaded URL was captured and written into the article.
+- [ ] Every uploaded file's URL was captured and is referenced in the article.
 - [ ] Slop findings were reported, not auto-applied.
-- [ ] `meta.aiGen` on the draft matches the value the human confirmed; nothing was published without an explicit yes.
+- [ ] `<ai-gen>` on the draft matches the value the human confirmed; nothing was published without an explicit yes.
