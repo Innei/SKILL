@@ -1,9 +1,10 @@
 #!/usr/bin/env -S uv run --quiet --with chinesecalendar python
 """Compute working-summary date range with Chinese holiday awareness.
 
-Default range: previous Mon-Sun week.
+Default range: the most recently completed Mon-Sun week (上周).
   Today=Mon        -> [last Mon, yesterday Sun]
-  Today=Tue..Sun   -> [prev Mon, prev Sun]
+  Today=Tue..Sat   -> [prev Mon, prev Sun]
+  Today=Sun        -> [this Mon, today]      (the week ends today)
 """
 from __future__ import annotations
 
@@ -25,6 +26,10 @@ def parse_date(s: str) -> date:
 
 def default_range(today: date) -> tuple[date, date]:
     weekday = today.weekday()  # Mon=0..Sun=6
+    # A week ends on Sunday. When today IS Sunday the week closing today is
+    # the last completed one ("上周"), not the week before it.
+    if weekday == 6:
+        return today - timedelta(days=6), today
     this_monday = today - timedelta(days=weekday)
     last_monday = this_monday - timedelta(days=7)
     last_sunday = this_monday - timedelta(days=1)

@@ -94,7 +94,7 @@ The skill uses a **previous Mon–Sun week** as the default:
 | -------- | ------------------------------------- |
 | Mon      | `[last Mon, yesterday Sun]`           |
 | Tue..Sat | `[prev Mon, prev Sun]`                |
-| Sun      | `[prev Mon, prev Sun]` (not this Sun) |
+| Sun      | `[this Mon, today]` — the week ends today, so it *is* 上周 |
 
 Explicit overrides:
 
