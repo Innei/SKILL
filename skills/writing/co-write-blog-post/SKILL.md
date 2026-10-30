@@ -27,6 +27,11 @@ the authoritative contract; read it once per session.
   `mxs auth whoami` succeeds; the server's admin URL is configured (the
   draft link comes from it); the `session-to-skill-and-blog` skill is
   installed (its references and scripts are reused, not copied).
+- **Production profile:** `mxs` refuses writes to a profile marked production
+  (`write blocked … is production`, exit 4) unless the command names it.
+  Prefix every writing command — `create-draft.sh`, `draft patch`,
+  `file upload`, `draft update` — with `MXS_PROFILE=<profile>`; an `export`
+  does not survive between separate shell calls.
 - **Boundaries:** not for turning a finished engineering session into a post
   (use `session-to-skill-and-blog`); never writes the human's prose
   unprompted; never publishes without an explicit yes.
@@ -91,7 +96,8 @@ only if it has none.
 bash "$S/create-draft.sh" "$SCRATCH/article.xml" --ai-gen '-1'
 ```
 
-The script prints `{ ok: true, id }` and an `opening admin: <url>` line.
+The script prints `ok: true`, `id: <draftId>` and an `opening admin: <url>`
+line.
 Remember the id for the session; the scratch file is not used again.
 
 ### [2] Hand over the editor
@@ -141,14 +147,17 @@ EOF
 ```
 
 4. Read the exit code:
-   - `0` and `applied: +a ~m -d blocks` → done; the human already sees it.
+   - `0` and `applied: +a ~m -d blocks` (plus `; meta: <fields>` when
+     `<meta>` changed) → done; the human already sees it.
    - `1` → the human changed that text after your `cat`. The error shows the
      block's current content: redo the edit on top of it with a fresh SEARCH.
      Never resend the same SEARCH. A second failure → tell the human.
    - `5` → the patch itself is malformed, or a replacement uses a tag the
      editor would drop (the message names it). Fix the block and retry.
-   - `3` / `4` / `6` → not signed in, network or write gate, server
-     rejected. Report the line; do not retry blindly.
+   - `4` with `write blocked … is production` → rerun the same command with
+     `MXS_PROFILE=<profile>` (see Preconditions).
+   - `3` / `4` / `6` otherwise → not signed in, network, server rejected.
+     Report the line; do not retry blindly.
 5. When the edit is a new kind of contribution, record it in the draft's
    disclosure with a patch on `<ai-gen>` (see [4] step 3 for the values),
    e.g. `<ai-gen>-1</ai-gen>` → `<ai-gen>[8]</ai-gen>` after the first
