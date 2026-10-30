@@ -88,7 +88,7 @@ REPO="$(bash "$S/resolve-skill-repo.sh")"
 | `load-litexml.sh` | `degit` the latest `litexml-authoring` subtree into `~/.cache/`. |
 | `load-no-ai-slop.sh` | `degit` the latest `no-ai-slop` skill into `~/.cache/`. If unavailable, report it and continue with the internal hard-ban sweep. |
 | `push-skill.sh` | Idempotent `mxs snippet put sk/<name>/SKILL.md --type skill`, plus sibling assets as `--type text`. Emits the snowflake id on stdout. |
-| `create-draft.sh` | `mxs draft create` with `aiGen=2`, `--open`, `--silent` → `{ ok, id }`; `--skill-id <id>` (repeatable) threads ids into `meta.skillIds`. |
+| `create-draft.sh` | `mxs draft create` with `aiGen=2`, `--open`, `--silent` → `ok: true` / `id: <draftId>`; `--skill-id <id>` (repeatable) threads ids into `meta.skillIds`. |
 | `get-post.sh` | `mxs post get <slug> --output xml` — round-trip step 1. |
 | `update-post.sh` | `mxs post update <slug> --file …` — strips `<state>`, then updates. |
 | `image-meta.mjs` | Emit `width` / `height` / `thumbhash` for a LiteXML `<img>`. Run from a project that has `sharp` + `thumbhash` (e.g. mx-core). |

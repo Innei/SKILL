@@ -2,7 +2,7 @@
 # Create a native draft entity on mx-space from a LiteXML envelope, mark it
 # with an AI disclosure (aiGen, default 2 = fully AI-written), optionally
 # attach one or more skill snippets via meta.skillIds, open the admin draft
-# editor for the user to preview, and emit only { ok, id }. The draft is
+# editor for the user to preview, and print only ok / id. The draft is
 # invisible on the site until `mxs draft publish <id>` — no post exists yet.
 #
 # Requires `mxs` with the `draft` command group (@mx-space/cli >= 0.14).

@@ -15,6 +15,13 @@ and the draft is reviewed and edited live in the admin write page.
 Requires an `mxs` whose `mxs draft --help` lists `cat` and `patch`;
 `mxs skill get commands-draft` is the authoritative contract.
 
+Production profile: `mxs` refuses writes to a profile marked production
+(`write blocked … is production`, exit 4) unless the command names it.
+Prefix every writing command in this file (`push-skill.sh`,
+`create-draft.sh`, `draft patch`, `draft publish`, `post stage/apply`,
+`file upload`) with `MXS_PROFILE=<profile>`; an `export` does not survive
+between separate shell calls.
+
 Agent loop:
 
 1. Create the draft (next section), tell the user the admin URL.
@@ -23,7 +30,9 @@ Agent loop:
    `mxs draft cat <draftId>` (or `--selection` when they point at "this
    paragraph"), then change only the requested blocks with one
    `mxs draft patch <draftId>` (SEARCH copied from `cat`, REPLACE the new
-   text). The edit appears in their open editor immediately. On exit 1 the
+   text). The edit appears in their open editor immediately and prints
+   `applied: +a ~m -d blocks`, plus `; meta: <fields>` when `<meta>`
+   changed. On exit 1 the
    text changed under you: `cat` again and redo the edit; never resend the
    same SEARCH. Then stop again.
 4. When the user says done, read the final state with
@@ -65,7 +74,7 @@ SKILL_ID=$(bash "$S/push-skill.sh" "$REPO/skills/<domain>/<skill-name>/SKILL.md"
 bash "$S/create-draft.sh" /tmp/blog/article.xml --skill-id "$SKILL_ID"
 # With no accepted skill, omit every --skill-id argument:
 # bash "$S/create-draft.sh" /tmp/blog/article.xml
-# → { ok: true, id: <draftId> } — capture the id for the next steps.
+# → prints `ok: true` and `id: <draftId>` — capture the id for the next steps.
 # The user reviews in the admin draft editor opened by --open (see Review).
 ```
 
@@ -233,7 +242,7 @@ the originating session as the asset-ization receipt.
 - [ ] Envelope used; no hand-written `<summary>`.
 - [ ] Title retains the defining technical identity; slug uses stable ASCII kebab-case terms and was checked for collision.
 - [ ] Reviewed in the online draft editor; agent edits went through `mxs draft patch`; the final state was read with `mxs draft cat`.
-- [ ] Native draft entity (`create-draft.sh` → `{ ok, id }`), not a draft-state post.
+- [ ] Native draft entity (`create-draft.sh` → `ok: true` / `id: <draftId>`), not a draft-state post.
 - [ ] After the last `draft update --file`, meta re-attached and confirmed via `draft get`.
 - [ ] `mxs draft publish <draftId>` ran only after the user approved the admin preview.
 - [ ] Live `meta.aiGen` verified; `meta.skillIds` matches the accepted skills and is absent or empty when there are none.
