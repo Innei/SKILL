@@ -1,38 +1,36 @@
-# Publish flow — author, draft, publish, stage/apply
+# Publish flow — draft, review, publish, stage/apply
 
 This file is the single home for publish correctness. Do not improvise
 meta, state, or category flags from memory.
 
-## Author (local review before any server call)
+## Order
 
-```bash
-mxs author /tmp/blog/article.xml          # prints URL, opens the admin editor
-mxs author --no-open /tmp/blog/article.xml
-```
+Create the server-side draft first (next section), then review it in the
+online editor. There is no local editor any more: `mxs author` was removed,
+and the draft is reviewed and edited live in the admin write page.
 
-Requires `mxs` ≥ 0.16.0 (`mxs author --help`; `mxs preview` was removed).
-`mxs author` serves the admin rich editor for the envelope without
-contacting `mx-core`. Only `<content>` is editable; meta stays byte-stable.
-`<file>` is required — stdin is not accepted. The editor and the file stay in
-sync through a Loro CRDT: browser edits autosave to `<file>` (and
-`<file>.diff`, current body vs the body at process start), and in-place agent
-edits to `<file>` are merged three-way and streamed into the open editor.
-History persists in `<file>.loro`. `mxs skill get commands-author` is the
-authoritative contract.
+## Review (online editor, after the draft exists)
+
+`create-draft.sh` passes `--open`, which prints the admin URL of the draft.
+Requires an `mxs` whose `mxs draft --help` lists `cat` and `patch`;
+`mxs skill get commands-draft` is the authoritative contract.
 
 Agent loop:
 
-1. Write the envelope file, start `mxs author <file>` in the background,
-   tell the user the URL.
+1. Create the draft (next section), tell the user the admin URL.
 2. **Stop.** Do not poll, do not auto-continue.
-3. If the user asks for changes while it runs, re-read `<file>` and change
-   only the requested blocks with one in-place edit (`Edit` / `apply_patch`).
-   Never `Write` the whole file from an old copy. Stdout prints
-   `agent edit merged` or `agent edit rejected`; then stop again.
-4. When the user says done, read `<file>.diff` to learn the edits. Do not
-   rescan the full article unless the diff is missing or unreadable.
-5. Continue with the no-ai-slop sweep and the draft steps below using the
-   updated file.
+3. If the user asks for changes, read the live draft with
+   `mxs draft cat <draftId>` (or `--selection` when they point at "this
+   paragraph"), then change only the requested blocks with one
+   `mxs draft patch <draftId>` (SEARCH copied from `cat`, REPLACE the new
+   text). The edit appears in their open editor immediately. On exit 1 the
+   text changed under you: `cat` again and redo the edit; never resend the
+   same SEARCH. Then stop again.
+4. When the user says done, read the final state with
+   `mxs draft cat <draftId>`. There is no diff file; compare against what
+   you wrote only if you need to know what they changed.
+5. Continue with the no-ai-slop sweep on that output. Report findings; the
+   user fixes them in the editor, or asks you to `patch` them.
 
 Keep authoring sources `<doc>`-wrapped when editing bare fragments —
 inter-block whitespace otherwise becomes root-level text nodes (Lexical
@@ -68,7 +66,7 @@ bash "$S/create-draft.sh" /tmp/blog/article.xml --skill-id "$SKILL_ID"
 # With no accepted skill, omit every --skill-id argument:
 # bash "$S/create-draft.sh" /tmp/blog/article.xml
 # → { ok: true, id: <draftId> } — capture the id for the next steps.
-# The user reviews in the admin draft editor opened by --open.
+# The user reviews in the admin draft editor opened by --open (see Review).
 ```
 
 `create-draft.sh` runs `mxs draft create` with `aiGen=2` (override with
@@ -88,16 +86,16 @@ implement this fallback.
 
 ## Iterate on the draft
 
-```bash
-mxs draft update <draftId> --file /tmp/blog/article.xml
-```
+Once the user has the editor open, edit only with `mxs draft patch`
+(see Review). It changes just the blocks you name, keeps their concurrent
+typing, and leaves `meta` alone unless a SEARCH/REPLACE block targets
+`<meta>` (`<ai-gen>`, `<skill-ids>`, `<tags>`, …). Do not re-run
+`draft create`.
 
-Versioned server-side: each content change bumps the draft version and
-records history. Do not re-run `draft create` to edit.
-
-`mxs draft update --file` replaces the envelope and **wipes `meta`**
-(`aiGen`, and `skillIds` when present). After the **last** file update,
-re-attach and confirm. With attached skills:
+`mxs draft update <draftId> --file …` replaces the whole draft, discards
+anything the user typed in the editor, and **wipes `meta`** (`aiGen`, and
+`skillIds` when present). Use it only before the user has opened the draft.
+If it ran, re-attach and confirm. With attached skills:
 
 ```bash
 mxs draft update <draftId> --meta '{"aiGen":2,"skillIds":["<SKILL_ID>"]}'
@@ -112,7 +110,7 @@ mxs draft update <draftId> --meta '{"aiGen":2}'
 mxs draft get <draftId>
 ```
 
-Skip the re-attach only when no file update ran after create.
+Skip the re-attach when no file update ran after create.
 
 ## Publish (after the user approves)
 
@@ -206,8 +204,9 @@ Prefer stage/apply when the installed `mxs` supports it
 confirms:
 
 ```bash
-mxs post stage <slug> --file /tmp/blog/article.xml   # readers see nothing
-# The user reviews (mxs author / admin), then approves:
+mxs post stage <slug> --file /tmp/blog/article.xml   # readers see nothing; prints the draft
+# The user reviews in the admin editor; agent changes go through
+# `mxs draft cat/patch <draftId>` on the staged draft. Then, on approval:
 mxs post apply <slug>                                # the confirm step
 ```
 
@@ -233,7 +232,7 @@ the originating session as the asset-ization receipt.
 - [ ] `<category>` reuses an existing slug, or the user explicitly approved a new one.
 - [ ] Envelope used; no hand-written `<summary>`.
 - [ ] Title retains the defining technical identity; slug uses stable ASCII kebab-case terms and was checked for collision.
-- [ ] Reviewed via `mxs author` on a `<doc>`-wrapped source (not a haklex worktree `pnpm litexml`); edits read from `<file>.diff`.
+- [ ] Reviewed in the online draft editor; agent edits went through `mxs draft patch`; the final state was read with `mxs draft cat`.
 - [ ] Native draft entity (`create-draft.sh` → `{ ok, id }`), not a draft-state post.
 - [ ] After the last `draft update --file`, meta re-attached and confirmed via `draft get`.
 - [ ] `mxs draft publish <draftId>` ran only after the user approved the admin preview.

@@ -56,7 +56,7 @@ For LiteXML tag syntax itself, load the litexml-authoring skill (fresh via
 Missing key → fallback to `~/git/innei-repo/SKILL`.
 Domains: `infrastructure` / `automation` / `writing` / `research` / `content`.
 Prereqs once per machine: `npm i -g @mx-space/cli` (Node ≥ 22, ≥ 0.16.0 —
-check `mxs draft --help` and `mxs author --help`); `mxs auth login`.
+`mxs draft --help` must list `cat` and `patch`); `mxs auth login`.
 
 ## Scripts
 
@@ -310,7 +310,8 @@ view. A rejected skill candidate may still supply valuable narrative material.
 ### [6] Publish via `mxs`
 
 Follow [`publish-flow.md`](./references/publish-flow.md) end to end —
-starting with `mxs author` (stop, wait for the user, read `<file>.diff`),
+starting with the draft and its online editor link (stop, wait for the user,
+then read it back with `mxs draft cat`),
 then the post-`--file` metadata re-attach and the post-publish metadata
 verification. Pass zero or more `--skill-id` arguments according to the
 accepted and successfully pushed skills. Paste the final URL back into the
