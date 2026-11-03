@@ -11,8 +11,10 @@ Writes:
 from __future__ import annotations
 
 import argparse
+import base64
 import html as htmllib
 import json
+import mimetypes
 import os
 import re
 import sys
@@ -41,6 +43,11 @@ def parse_args():
     p.add_argument("--out", "-o", default="-", help="Output HTML path or - for stdout")
     p.add_argument("--user", default=None, help="Shell prompt user (defaults to $USER)")
     p.add_argument("--host", default="reports", help="Shell prompt host")
+    p.add_argument(
+        "--assets",
+        default=None,
+        help="Directory a report's relative image src resolves against; images are inlined as data URIs",
+    )
     return p.parse_args()
 
 
@@ -79,9 +86,31 @@ META_PAT_REPOS = re.compile(r"仓库\s*(\d+)")
 META_PAT_AUTHOR = re.compile(r"作者\s*([^\s·,，、]+)")
 META_PAT_PRS_MERGED = re.compile(r"合入\s*(\d+)\s*个?\s*PR|(\d+)\s*个\s*PR\s*·|^(\d+)\s*PRs?", re.MULTILINE)
 
+# A leading strong token that names a metadata field. Anything else keeps its
+# paragraph: the report's lead sentence usually carries bold words too.
+META_KEYS = {
+    "周期", "周末", "作者", "仓库", "构成",
+    "period", "weekend", "author", "repos", "workdays", "weekends",
+}
+
+
+def is_meta_paragraph(node: Tag) -> bool:
+    strong = node.find("strong")
+    if strong is None:
+        return False
+    for child in node.children:
+        if isinstance(child, Tag):
+            if child.name != "strong":
+                return False
+            break
+        if str(child).strip():
+            return False
+    key = strong.get_text(strip=True).rstrip("：:").strip().lower()
+    return key in META_KEYS
+
 
 def extract_header(soup: BeautifulSoup) -> tuple[dict, Optional[str]]:
-    """Pull meta from the first strong-bearing <p> and optional plain blockquote summary.
+    """Pull meta from the leading `**key**：…` paragraphs and an optional summary blockquote.
 
     Removes the consumed nodes from the tree. Returns (meta_dict, shipped_html_or_none).
     Stops at the first <h2>.
@@ -98,7 +127,7 @@ def extract_header(soup: BeautifulSoup) -> tuple[dict, Optional[str]]:
             break
         if node.name == "h1":
             continue  # h1 handled separately
-        if node.name == "p" and node.find("strong"):
+        if node.name == "p" and is_meta_paragraph(node):
             meta_texts.append(node.get_text(" ", strip=True))
             node.decompose()
             continue
@@ -257,6 +286,68 @@ def wrap_repos_into_details(soup: BeautifulSoup) -> None:
                 body.append(n.extract())
             details.append(body)
             h3.replace_with(details)
+
+
+def fold_appendix_sections(soup: BeautifulSoup) -> None:
+    """Fold an 附录 / appendix section into a collapsed <details>.
+
+    The report body carries the narrative; the appendix (repo table, PR list,
+    Linear snapshot) exists for lookup and must not push the narrative down.
+    Reads sections, so run it after `wrap_sections`.
+    """
+    for section in list(soup.find_all("section")):
+        h2 = section.find("h2")
+        if not h2:
+            continue
+        text = h2.get_text(strip=True)
+        if not re.search(r"附录|appendix", text, re.I):
+            continue
+        details = soup.new_tag("details")
+        details["class"] = "appendix"
+        summary = soup.new_tag("summary")
+        summary.string = text
+        details.append(summary)
+        body = soup.new_tag("div")
+        body["class"] = "details-body"
+        h2.extract()
+        for child in list(section.children):
+            body.append(child.extract())
+        details.append(body)
+        section.replace_with(details)
+
+
+def inline_images(soup: BeautifulSoup, assets_dir: Optional[str]) -> None:
+    """Inline local evidence images and give each one a captioned <figure>.
+
+    A report's evidence screenshots live beside the markdown as relative paths.
+    The HTML must stay a single self-contained file, so the bytes go in as data
+    URIs; the markdown stays readable and the editor projection drops them.
+    """
+    if not assets_dir:
+        return
+    root = Path(assets_dir).expanduser()
+    for img in soup.find_all("img"):
+        src = img.get("src") or ""
+        if not src or src.startswith(("http://", "https://", "data:")):
+            continue
+        path = root / src
+        if not path.is_file():
+            continue
+        mime = mimetypes.guess_type(str(path))[0] or "application/octet-stream"
+        img["src"] = f"data:{mime};base64,{base64.b64encode(path.read_bytes()).decode()}"
+        img["loading"] = "lazy"
+
+        alt = (img.get("alt") or "").strip()
+        parent = img.find_parent("p")
+        if parent is None:
+            continue
+        fig = soup.new_tag("figure")
+        parent.replace_with(fig)
+        fig.append(img.extract())
+        if alt:
+            cap = soup.new_tag("figcaption")
+            cap.string = alt
+            fig.append(cap)
 
 
 def _slug_chunk(text: str) -> str:
@@ -476,11 +567,20 @@ def main() -> int:
     # 5. Convert obsidian callouts
     convert_callouts(soup)
 
+    # 5b. Inline evidence images (relative → data URI) and caption them
+    assets_dir = args.assets or (
+        str(Path(args.markdown).expanduser().parent) if args.markdown != "-" else None
+    )
+    inline_images(soup, assets_dir)
+
     # 6. Per-repo sections → <details>
     wrap_repos_into_details(soup)
 
     # 7. Wrap each h2 in <section>
     wrap_sections(soup)
+
+    # 7b. Fold the appendix into a collapsed <details>
+    fold_appendix_sections(soup)
 
     # 8. Assign h3 ids (for TOC sub-items)
     assign_h3_ids(soup)

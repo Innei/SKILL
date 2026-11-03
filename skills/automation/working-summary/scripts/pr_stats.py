@@ -64,8 +64,9 @@ def build_stats(github: dict, weekend_dates: list[str] | None = None) -> dict:
     weekend_prs = 0
     for repo, data in (github or {}).items():
         prs = (data or {}).get("prs_merged") or []
-        if not prs:
-            continue
+        commits = (data or {}).get("commits") or []
+        if not prs and not commits:
+            continue  # repository had no activity in the window
         counts: dict[str, int] = {}
         for pr in prs:
             bucket = classify_title((pr or {}).get("title") or "")
@@ -73,20 +74,31 @@ def build_stats(github: dict, weekend_dates: list[str] | None = None) -> dict:
             total[bucket] = total.get(bucket, 0) + 1
             if ((pr or {}).get("mergedAt") or "")[:10] in weekend_set:
                 weekend_prs += 1
-        by_repo.append(
-            {
-                "repo": repo,
-                "prs": len(prs),
-                "by_type": _ordered(counts),
-            }
-        )
+        row = {
+            "repo": repo,
+            "prs": len(prs),
+            "commits": len(commits),
+            "by_type": _ordered(counts),
+        }
+        if not prs:
+            # Direct-push repos are how the biz repos ship; they are not "nothing
+            # happened". Keep them in the stats so the appendix can list them.
+            row["push_only"] = True
+            row["top_commits"] = [
+                {
+                    "sha": (c.get("sha") or "")[:7],
+                    "subject": ((c.get("message") or "").splitlines() or [""])[0][:110],
+                }
+                for c in sorted(commits, key=lambda c: c.get("date") or "", reverse=True)[:4]
+            ]
+        by_repo.append(row)
     weekend_commits = sum(
         1
         for data in (github or {}).values()
         for commit in ((data or {}).get("commits") or [])
         if (commit.get("date") or "")[:10] in weekend_set
     )
-    by_repo.sort(key=lambda row: (-row["prs"], row["repo"]))
+    by_repo.sort(key=lambda row: (-row["prs"], -row["commits"], row["repo"]))
     return {
         "prs_merged": sum(row["prs"] for row in by_repo),
         "by_type": _ordered(total),

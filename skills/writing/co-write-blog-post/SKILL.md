@@ -124,6 +124,7 @@ smoother paragraph — runs this loop once per request):
    | ------- | ---- |
    | Diagram (画图, 流程图, 时序图) | `$REFS/visuals.md`, then LiteXML syntax via `bash "$S/load-litexml.sh"`; Excalidraw scenes go in as uploaded files per "Assets" |
    | Rewrite, tighten, continue a passage | `$REFS/writing-style.md` with the narrator from [0] |
+   | Write or rewrite a section of a technical post | `$REFS/writing-style.md` and `$REFS/visuals.md` › Technical posts are illustrated by default: the section ships with its visual in the same patch, and prose the visual carries is cut |
    | Image / screenshot | "Assets" below |
    | Excalidraw scene, chart data, any JSON or file the article references | "Assets" below |
    | Interactive widget or special node | `$REFS/node-usage.md` |
@@ -225,6 +226,8 @@ Publish only after the human approves the draft preview.
 | Creating a second draft for an article that exists | `mxs draft list` and resume it. |
 | Filling the blank page with a full draft or outline | Only write what was asked; offer outlines in chat. |
 | Rewriting neighbouring blocks "while there" | Touch only the requested blocks. |
+| A technical section that lists dates, structure, or numbers as prose | Draw the relationship (Gantt, structure, flow, bars) and cut the enumerating prose. |
+| Raw `<br/>` inside `<mermaid>` (patch exits 5) | Write `&lt;br/&gt;`. |
 | Publishing on 写完了 | 写完了 starts the finish sweep; publishing needs an explicit yes. |
 | `aiGen=2` on a co-written post | Patch `<ai-gen>` to the confirmed value. |
 

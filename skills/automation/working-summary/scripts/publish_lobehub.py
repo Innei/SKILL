@@ -66,6 +66,20 @@ def main():
 
     if dup and a.on_duplicate == "replace":
         lh(["kb", "remove-files", a.kb, "--ids", *[f["id"] for f in dup], "--yes"], env)
+        # Removing a document from the KB leaves its underlying file entry
+        # behind; a replace-per-run workflow would pile them up.
+        orphans = [f["fileId"] for f in dup if f.get("fileId")]
+        if orphans:
+            r = subprocess.run(
+                ["lh", "file", "delete", "--yes", *orphans],
+                capture_output=True, text=True, env=env,
+            )
+            if r.returncode != 0:
+                print(
+                    f"orphaned file(s) kept ({', '.join(orphans)}): "
+                    f"{(r.stderr or r.stdout).strip()[:160]}",
+                    file=sys.stderr,
+                )
 
     print(json.dumps({
         "id": doc_id,

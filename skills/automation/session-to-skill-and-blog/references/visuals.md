@@ -15,6 +15,23 @@ Do not set a visual quota. A visual earns its place when prose would require
 the reader to reconstruct a spatial, temporal, stateful, or quantitative
 relationship mentally. Write the question before choosing the medium.
 
+### Technical posts are illustrated by default
+
+The site owner wants technical posts written with text and visuals
+together, not walls of prose. While drafting each section, find the
+relationship the prose is enumerating and draw it instead:
+
+- dates or versions listed in a sentence → timeline or Gantt
+- package, module, or ownership layout → structure diagram
+- a numbered sequence of steps or a loop → flow diagram
+- before/after or side-by-side numbers → `before-after-bars` widget or plot
+
+Then cut the prose the visual now carries and keep only the reading order and
+the conclusion. A section of three or more paragraphs that enumerates
+structure, dates, or numbers without a visual is the failure mode. The
+question-first rule below still applies: every visual answers a named
+question, and a visual that only restates the heading is still decoration.
+
 | Reader must understand… | Prefer | Reason |
 | ----------------------- | ------ | ------ |
 | An observed interface, rendered result, or tool state | Screenshot or short video | Preserve the actual artifact as evidence |
@@ -94,8 +111,13 @@ medium.
 - Keep the palette subordinate to meaning. Do not assign a new color merely
   to make the scene more varied.
 - Validate that every diagram answers its named question and that no two
-  diagrams make the same point. Zero diagrams is correct when prose, code,
-  or a table explains the material without forcing mental simulation.
+  diagrams make the same point. In a technical post, a section with no visual
+  needs a reason: its material is argument or narrative, not structure,
+  sequence, or numbers.
+- Mermaid inside LiteXML: write line breaks in labels as `&lt;br/&gt;`; a raw
+  `<br/>` is parsed as an XML tag and `mxs draft patch` exits 5. Gantt tasks
+  accept `Name :YYYY-MM-DD, YYYY-MM-DD`; keep `:` out of task names. After
+  inserting, look at the rendered diagram in the admin editor once.
 
 ## Image and Excalidraw attachments
 

@@ -18,6 +18,7 @@ HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 
 from compute_range import classify_range, default_range, parse_date  # noqa: E402
+from evidence import load_evidence  # noqa: E402
 from fetch_github import collect as fetch_github_collect  # noqa: E402
 from fetch_linear import collect as fetch_linear_collect  # noqa: E402
 from pr_stats import build_stats  # noqa: E402
@@ -117,6 +118,7 @@ def main() -> None:
         },
         "github": github_data,
         "linear": linear_data,
+        "evidence": load_evidence(start.isoformat(), end.isoformat()),
         "stats": build_stats(
             github_data,
             weekend_dates=[d["date"] for d in breakdown if d["weekend"]],

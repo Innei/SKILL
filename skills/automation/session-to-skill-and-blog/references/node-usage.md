@@ -160,8 +160,10 @@ below are ceilings for the exceptional case, not allowances to spend.
   number; one that nails the core lesson is excellent; several per post
   almost always means gimmickry. Enter only through a scenario in "When
   interaction teaches" — never as engagement garnish.
-- **Diagrams**: default 0. Add one for each distinct spatial, temporal,
-  stateful, or quantitative question that prose cannot answer efficiently.
+- **Diagrams**: technical posts are illustrated by default (see
+  `visuals.md` › Technical posts are illustrated by default). Add one for
+  each distinct spatial, temporal, stateful, or quantitative question that
+  prose would otherwise enumerate.
   Do not satisfy a diagram count, and do not split one relationship across
   several visuals to create variety.
 - Node variety is **not** a quality metric. The metric is information
@@ -191,4 +193,5 @@ justification from the deletion test. Three outcomes:
 
 Then check the budgets: alerts default 0 (≤ 2, each naming real damage),
 banner default 0 (only page-wide status about the post itself),
-interactive usually 0, diagrams each answering a named question.
+interactive usually 0, diagrams each answering a named question, and no
+technical section enumerating structure, dates, or numbers without one.
