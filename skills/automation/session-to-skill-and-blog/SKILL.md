@@ -40,7 +40,7 @@ actual work:
 | [`references/publish-flow.md`](./references/publish-flow.md) | When authoring-reviewing / creating / editing / publishing the post. |
 | [`references/widget-template/`](./references/widget-template/DESIGN.md) | When authoring a new `<dynamic>` widget. |
 | `references/envelope.template.xml` | Copy as the post envelope before pasting the LiteXML body. |
-| `no-ai-slop` (via `load-no-ai-slop.sh`) | After the draft is written, before publishing — detect candidates, revise manually, rerun. |
+| `lieflat-less-ai-tone` (Chinese, via `load-lieflat.sh`) / `no-ai-slop` (English, via `load-no-ai-slop.sh`) | After the draft is written, before publishing — detect candidates, revise manually, rerun. Procedure: `writing-style.md` › External sweep. |
 
 For LiteXML tag syntax itself, load the litexml-authoring skill (fresh via
 `load-litexml.sh`) — this skill governs *whether/when*, that one governs *how*.
@@ -86,7 +86,9 @@ REPO="$(bash "$S/resolve-skill-repo.sh")"
 | `resolve-skill-repo.sh` | Print absolute path to the SKILL repo (config-driven, with fallback). |
 | `scaffold-skill.sh` | Create dir + stub SKILL.md + README row (alphabetical, domain-scoped) + both flat symlinks; `git add` staged. |
 | `load-litexml.sh` | `degit` the latest `litexml-authoring` subtree into `~/.cache/`. |
-| `load-no-ai-slop.sh` | `degit` the latest `no-ai-slop` skill into `~/.cache/`. If unavailable, report it and continue with the internal hard-ban sweep. |
+| `load-lieflat.sh` | `degit` the latest `lieflat-less-ai-tone` repo (Chinese detector, `scripts/detect.py`) into `~/.cache/`. If unavailable, report it and continue with the internal hard-ban sweep. |
+| `litexml-to-md.py` | Convert a LiteXML envelope or `<doc>` to Markdown prose for `detect.py`; drops diagrams, embeds, and images. |
+| `load-no-ai-slop.sh` | `degit` the latest `no-ai-slop` skill (English detector) into `~/.cache/`. If unavailable, report it and continue with the internal hard-ban sweep. |
 | `push-skill.sh` | Idempotent `mxs snippet put sk/<name>/SKILL.md --type skill`, plus sibling assets as `--type text`. Emits the snowflake id on stdout. |
 | `create-draft.sh` | `mxs draft create` with `aiGen=2`, `--open`, `--silent` → `ok: true` / `id: <draftId>`; `--skill-id <id>` (repeatable) threads ids into `meta.skillIds`. |
 | `get-post.sh` | `mxs post get <slug> --output xml` — round-trip step 1. |
@@ -286,11 +288,13 @@ system from the title.
 Once the draft is complete:
 
 ```bash
-SLOP_CACHE=$(bash "$S/load-no-ai-slop.sh") || {
-  echo "no-ai-slop unavailable; continue with the internal hard-ban sweep"
+LIEFLAT=$(bash "$S/load-lieflat.sh") || {
+  echo "lieflat unavailable; continue with the internal hard-ban sweep"
 }
-# Read $SLOP_CACHE/SKILL.md. Detect candidates only; revise them by hand,
-# rerun the sweep, and leave no unresolved finding. Never auto-rewrite.
+# Chinese draft: litexml-to-md.py → $LIEFLAT/scripts/detect.py, per
+# writing-style.md › External sweep. English draft: load-no-ai-slop.sh.
+# Detect candidates only; revise them by hand, rerun the sweep, and leave
+# no unresolved finding. Never auto-rewrite.
 ```
 
 Medium: default LiteXML (for the site owner's blog).
@@ -340,7 +344,9 @@ Publish, voice, and node rules live in those files.
 | `--no-verify` to bypass the pre-commit hook | Fix the root cause. The hook now requires the README row inside the matching domain table. |
 | Hardcoding the SKILL repo path in shell | `bash "$S/resolve-skill-repo.sh"`. |
 | Locating `$S` via `~/.claude/skills/...` only | Use the search loop above. |
-| Stale local `litexml-authoring` / `no-ai-slop` clone | `load-litexml.sh` / `load-no-ai-slop.sh` refresh via degit. If no-ai-slop cannot load, skip and say so. |
+| Stale local `litexml-authoring` / `lieflat-less-ai-tone` / `no-ai-slop` clone | `load-litexml.sh` / `load-lieflat.sh` / `load-no-ai-slop.sh` refresh via degit. If the detector cannot load, skip it and say so. |
+| Running `no-ai-slop` on a Chinese draft, or `detect.py` on raw LiteXML | Chinese → lieflat on `litexml-to-md.py` output; English → no-ai-slop. |
+| Fixing lieflat X-grade items (`这意味着`, ordinal subheadings, list intros) or evening out sentence lengths | Never. Its matched-pair data shows humans write these as often or more. |
 | Skill written in Chinese | Skill in English. Blog in the user's chosen language (default Chinese). |
 | Skipping `push-skill.sh` and embedding only the GitHub URL | The install card reads `meta.skillIds`. Without `--skill-id`, it never renders. |
 | Form / narrator / voice / slop mistakes | `writing-style.md`. |
@@ -365,6 +371,6 @@ Publish, voice, and node rules live in those files.
 - [ ] Blog body has **zero** mention of the skill — the skill card carries the linkage.
 - [ ] Voice, node, and visual checks in `writing-style.md` / `node-usage.md` / `visuals.md` passed.
 - [ ] Final title preserves the technical identity anchor and makes no claim broader than the evidence; slug uses stable searchable terms.
-- [ ] `no-ai-slop` detect sweep rerun after manual edits with no unresolved finding; if the loader failed, the internal hard-ban sweep still passed and the failure was reported.
+- [ ] Detector matched the language (lieflat for Chinese, no-ai-slop for English) and was rerun after manual edits with no unresolved finding; if the loader failed, the internal hard-ban sweep still passed and the failure was reported.
 - [ ] `meta.skillIds` contains exactly the successfully pushed skills; it is absent or empty when no skill passed the gate.
 - [ ] Publish checklist in `publish-flow.md` passed; final post URL pasted back into the originating session.

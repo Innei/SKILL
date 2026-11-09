@@ -56,7 +56,7 @@ SKILL/
 | ----- | ------- |
 | [`acg-character-settei`](skills/content/acg-character-settei/SKILL.md) | Generate ACG character settei sheet (multi-view + expression + callouts) from a reference image via Gemini |
 | [`app-store-listing`](skills/content/app-store-listing/SKILL.md) | One-shot App Store listing: copy, official-bezel screenshots, and Connect questionnaires |
-| [`chibi-sticker-sheet`](skills/content/chibi-sticker-sheet/SKILL.md) | Generate a 4×8 chibi sticker sheet from a character reference via Gemini, with alpha keying and 1:1 cell slicing |
+| [`chibi-sticker-sheet`](skills/content/chibi-sticker-sheet/SKILL.md) | Generate a 4×8 chibi sticker sheet via Codex CLI (default) or Gemini, with alpha keying, 1:1 cell slicing, and matching banners |
 | [`gemini-image-generation`](skills/content/gemini-image-generation/SKILL.md) | Gemini text-to-image and image-to-image — style transfer, character consistency, watermark removal |
 | [`gemini-seo-image-assets`](skills/content/gemini-seo-image-assets/SKILL.md) | Generate favicon/OG artwork via Gemini, export icon variants, and wire SEO metadata |
 | [`product-visuals`](skills/content/product-visuals/SKILL.md) | Compose product marketing visuals from real macOS/iOS screenshots in official device bezels |

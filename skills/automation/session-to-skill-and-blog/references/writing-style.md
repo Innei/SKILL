@@ -145,6 +145,13 @@ about extracting an Electron Sparkle updater merely to make its general
 boundary lesson sound sharper. Keep one or two defining technical names;
 secondary implementation details belong in the body.
 
+For a `tech` post the identity anchor is the technology, not the site
+owner's project. Write a general statement any engineer facing the same
+move would recognize ("从 React Native 渐进迁移到 UIKit：先拆数据层，再翻转宿主"),
+and keep the project name in the body. Never put elapsed time in the title
+("三天半", "四天", "一周"); the site owner dislikes duration-led titles.
+Derive the slug the same way: technology terms, no project name.
+
 Generate candidates around genuinely different centers rather than synonym
 rotation: a concrete result, a mechanism or constraint, or an evaluable
 judgment. Select the center that matches the article's spine. A process post
@@ -320,8 +327,10 @@ What is checked instead, after writing, per pattern-bearing section:
   opening aphorism, a sentence that lands as the fix resolves) — never under a
   fixed label.
 - Does its claim stand on **real failure evidence** (verbatim log, error,
-  code shape) rather than assertion?
-- Could a reader **reconstruct the fix** concretely, not just nod along?
+  commit, a diagram of the boundary that failed) rather than assertion?
+- Could a reader **explain why the design takes this shape**, not just nod
+  along? Carry the design with an architecture diagram, not code
+  (`visuals.md` › Architecture over implementation).
 
 A supporting section may establish context, constraints, trade-offs, or
 verification without carrying a separate pattern. Three consecutive sections
@@ -428,9 +437,12 @@ authorial prose; preserve verbatim source material when it is evidence.
 5. **Vague authority and abstract consequences.** Name the source behind
    "research shows" or "the industry agrees". Replace "demonstrates a focus
    on" and "marks a milestone" with the observable result.
-6. **Mechanical cadence.** Remove synonym cycling, repeated paragraph
-   lengths, block-for-block section templates, dramatic fragments, and
-   consecutive one-line conclusions.
+6. **Mechanical cadence.** Remove synonym cycling (one concept renamed
+   within a paragraph), three adjacent sentences on one syntactic skeleton,
+   block-for-block section templates, dramatic fragments, and consecutive
+   one-line conclusions. Do not vary sentence or paragraph length to sound
+   human: matched-pair tests found no human/AI difference there, and
+   manufactured irregularity reads worse than the original.
 7. **Closing recap or borrowed profundity.** Do not add a generic summary,
    CTA, metaphor, proverb, or universal life lesson after the final technical
    point. A long guide's retrieval aid must compress the material into a
@@ -438,15 +450,71 @@ authorial prose; preserve verbatim source material when it is evidence.
 8. **Decorative formatting.** Do not use emoji headings, random bold text,
    headings every two sentences, or `<alert>`/`<banner>` nodes that fail the
    deletion test in `node-usage.md`.
+9. **Chinese translationese.** Split a pre-noun modifier longer than fifteen
+   characters or carrying two `的`; drop a `对于……来说` / `就……而言` /
+   `在……方面` shell when its object is already the subject; move
+   `然而，` / `因此，` / `此外，` off the front of consecutive paragraphs;
+   break a clause holding three or more `、` items unless it is a required
+   enumeration.
 
-## External sweep — `no-ai-slop`
+Do not flag these. Matched-pair tests found humans use them as much or more:
+ordinal subheadings, `这意味着` / `这表明` restatements, a line introducing a
+list, rhetorical questions and question headings, precise numbers,
+`首先` / `其次` / `总之`, and summary sentences beside data in the same
+paragraph. Leave metaphors and personification alone; their aptness is a
+human call.
+
+## External sweep
 
 Apply the internal hard bans even when the external detector is unavailable.
-For the wider surface, load `no-ai-slop` via `scripts/load-no-ai-slop.sh`
-and use it only to identify candidates. Never give it authority to rewrite
-the draft.
+Pick the detector by the draft's language and use it only to identify
+candidates. Never give it authority to rewrite the draft.
 
-For every finding, apply the editorial standard at the top of this file.
+| Draft | Detector | Loader |
+| ----- | -------- | ------ |
+| Chinese (default) | `lieflat-less-ai-tone`: scripted metrics plus semantic criteria, measured on 270 same-topic human/AI article pairs | `scripts/load-lieflat.sh` |
+| English | `no-ai-slop` in detect mode | `scripts/load-no-ai-slop.sh` |
+
+### Chinese: `lieflat-less-ai-tone`
+
+```bash
+LIEFLAT=$(bash "$S/load-lieflat.sh")
+WORK=$(mktemp -d)
+mxs draft cat <draftId> > "$WORK/draft.xml"
+python3 "$S/litexml-to-md.py" "$WORK/draft.xml" > "$WORK/draft.md"
+python3 -I "$LIEFLAT/scripts/detect.py" "$WORK/draft.md" --json > "$WORK/before.json"
+python3 -I "$LIEFLAT/scripts/detect.py" "$WORK/draft.md" --candidates --out "$WORK/candidates.json"
+```
+
+For a local LiteXML source, pass that file to `litexml-to-md.py` instead of
+`mxs draft cat` output. Run the human-readable report with
+`detect.py "$WORK/draft.md"` (no `--json`).
+
+Follow `$LIEFLAT/SKILL.md` steps 1, 1.5, and 2 only: label every candidate
+against `$LIEFLAT/references/semantic-criteria.md`, then report in chat:
+the metric table with the research reference, each finding's quoted
+sentence, the proposed fix, and every kept or excluded item with its reason.
+Stop there. Skip its steps 3–4 (full-file rewrite and `report.py`); fixes
+here are the human's edits or a `mxs draft patch` of the named blocks.
+
+- Quote the sentence, not the line number. `detect.py` numbers lines of
+  `draft.md`, which the human cannot see in the editor.
+- Grade X findings are never reported as problems. Grade C (sentence-length
+  CV, heading density) and H (metaphor aptness) are reported as numbers, not
+  fixed.
+- Any fix obeys lieflat's rewrite principles: smallest change, every fact
+  and hedge kept, structure untouched, no manufactured irregularity.
+- After fixes, convert a fresh `cat` and rerun `detect.py`. Every A/B and
+  confirmed semantic hit is fixed or kept with a stated reason.
+
+### English: `no-ai-slop`
+
+Read `$SLOP_CACHE/SKILL.md` from `scripts/load-no-ai-slop.sh` and run its
+Detect job only.
+
+### Every finding
+
+Apply the editorial standard at the top of this file.
 Delete a line with no factual proposition. Rewrite a proposition hidden by a
 rhetorical wrapper. Retain a flagged line only when removal would erase a
 necessary technical distinction, and record that reason outside the article.
@@ -456,10 +524,14 @@ If the loader fails and no cache exists, report the failure and complete the
 internal sweep. Do not skip the anti-slop pass.
 
 Search Chinese drafts explicitly for `本文将`, `值得注意`, `简单来说`,
-`大多数人不知道`, `这不是`, `问题不在`, `真正关键的是`, `体现了`,
+`说白了`, `说穿了`, `先说结论`, `一句话总结：`, `核心是：`, `关键在于：`,
+`大多数人不知道`, `这不是`, `不是……而是`, `并非……而是`, `与其说`,
+`看似……实则`, `你以为……其实`, `问题不在`, `真正关键的是`, `体现了`,
 `彰显了`, `标志着`, `起到了关键作用`, `业界普遍认为`, `有研究表明`,
 `赋能`, `抓手`, and `闭环`. Delete the wrapper or replace it with evidence,
-a named source, a scoped decision, or a concrete consequence.
+a named source, a scoped decision, or a concrete consequence. `赋能` /
+`抓手` / `闭环` are not an AI signal in lieflat's data; they stay here as
+site-owner taste, judged by the deletion test.
 
 ## Research basis
 

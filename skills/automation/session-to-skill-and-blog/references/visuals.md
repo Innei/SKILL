@@ -32,6 +32,22 @@ structure, dates, or numbers without a visual is the failure mode. The
 question-first rule below still applies: every visual answers a named
 question, and a visual that only restates the heading is still decoration.
 
+### Architecture over implementation
+
+The site owner explains a design with architecture diagrams, not code. A
+section says why the decision was made and how the architecture is shaped;
+it does not walk through how it was implemented.
+
+- No code reference implementations: no before/after call sites, hook
+  bodies, or config listings. Draw the boundary, ownership, or data flow the
+  code embodies instead.
+- Implementation detail (method counts, timeouts, call names, a workaround
+  for one bug) is cut unless the argument depends on it.
+- A table of pitfalls and their workarounds becomes a layer diagram with the
+  problems annotated on the layer that caused them.
+- Section shape: one why-paragraph, the diagram, one conclusion paragraph.
+  Before adding prose, check whether the diagram already carries it.
+
 | Reader must understand… | Prefer | Reason |
 | ----------------------- | ------ | ------ |
 | An observed interface, rendered result, or tool state | Screenshot or short video | Preserve the actual artifact as evidence |
@@ -86,19 +102,25 @@ The row is a planning aid, not a mandatory article table.
 
 ## Excalidraw vs Mermaid
 
-Choose by geometry and maintenance needs. Excalidraw supports spatial
-annotation and deliberate emphasis; Mermaid supports strict, repeatable
-structures and automatic routing. The article spine does not determine the
-medium.
+Choose per diagram, not per article. A post usually mixes both.
 
-| Diagram type | Use | Why |
+| Relationship | Use | Why |
 | ------------ | --- | --- |
-| Decision tree / branching choice | Excalidraw | Manual placement keeps branch labels and decision emphasis explicit |
-| Architecture lanes (named columns) | Excalidraw | Spatial grouping and annotations communicate ownership boundaries |
-| Timeline / event chain | Excalidraw | Manual spacing can emphasize decisive events without implying uniform intervals |
-| Pipeline (linear N-step flow) | Excalidraw | Per-step annotations can remain adjacent to the relevant transition |
-| Strict sequence diagram | Mermaid | Lifelines and ordered messages require a consistent formal structure |
-| Dense flowchart with many edges | Mermaid | Automatic routing manages repeated structure and edge crossings |
+| Timeline / event chain | Mermaid `gantt` (`:milestone, <date>, 0d`; `section` per category) | Real day spacing and grouping without hand layout |
+| Pipeline, ordered steps, generation chain | Mermaid `flowchart LR/TB` | Linear structure; automatic routing |
+| Fan-in / fan-out ownership (owners → one interface → consumers) | Mermaid `flowchart` | Edges carry the meaning; layout is mechanical |
+| Strict sequence diagram | Mermaid `sequenceDiagram` | Lifelines need a formal structure |
+| Layered architecture the reader compares at a glance | Excalidraw | Position and stacking carry the meaning |
+| Before/after or multi-state panels of the same system | Excalidraw | Panels need aligned, deliberate geometry |
+| Problems annotated on the layer that caused them | Excalidraw | Annotations sit beside the exact layer |
+| Coverage maps, boundary regions, directory before/after | Excalidraw | Regions and grouping are spatial |
+
+Keep one palette across both media (light blue / light green / light
+yellow / light pink, dashed grey for not-built) so colors stay semantic.
+Render every Mermaid source locally before patching:
+`PUPPETEER_EXECUTABLE_PATH="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" npx -y @mermaid-js/mermaid-cli -i x.mmd -o x.png -w 1400 -b white`
+(from a scratch directory), then read the PNG. `gantt` does not accept
+`classDef`. Inside LiteXML escape the body: `&lt;br/&gt;`, `--&gt;`.
 
 ## Authoring rules
 

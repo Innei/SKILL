@@ -1,22 +1,56 @@
 ---
 name: chibi-sticker-sheet
-description: Use when generating a LINE/WeChat-style chibi sticker sheet (4x8 grid, 32 expressions) from an anime character reference image via Gemini, including transparent PNG output and individual cell slicing.
+description: Use when generating LINE/WeChat-style chibi stickers (4x8 grid, 32 expressions), transparent PNG cells, or matching submission banners from an anime character reference, using Codex CLI or Gemini.
 ---
 
 # Chibi Sticker Sheet
 
-Generate a 4×8 chibi sticker sheet from a character reference image with Gemini, then key out the white background and slice into 32 individual transparent PNGs.
+Generate a 4×8 chibi sticker sheet from a character reference image with **Codex CLI by default**, then key out the white background and slice into 32 individual transparent PNGs. Gemini remains available via `--provider gemini`.
 
 ## Scope
 
 - Input: 1 character reference PNG + a list of 32 expressions
 - Output: `sheet_white.png`, `sheet_transparent.png`, `cells/*.png` (512×512 each)
-- Requires: any one of `GOOGLE_AI_STUDIO_API_KEY` / `GEMINI_API_KEY` / `GOOGLE_API_KEY` (AI Studio) **or** `VERTEX_AI_KEY` (Vertex Express) **or** `GOOGLE_GENAI_USE_VERTEXAI=true` + `GOOGLE_CLOUD_PROJECT`/`LOCATION` (Vertex ADC); Python + `uv`; model `gemini-3.1-flash-image-preview`
+- Requires: Python + `uv`, plus the selected provider's setup below.
 - Not covered: per-cell text overlays; use PIL `ImageDraw` post-hoc for captions
 
-## Key Finding: Double-Matte Fails
+## Provider Selection
 
-The natural "white bg + black bg → α extraction" requires pixel-aligned foregrounds. **Gemini ignores bg-change instructions** in image-to-image edits and returns the same image. Use **edge flood-fill keying** instead (see scripts/key_alpha.py).
+All three generation entrypoints (`generate.py`, `generate_banner.py`, `generate_extras.py`) accept `--provider codex|gemini`; omitting it selects **codex**.
+
+| Provider | Setup | Generation |
+|---|---|---|
+| `codex` (default) | Install a current Codex CLI, run `codex login`, and use an account/provider with native image generation available | `codex exec` with `image_generation` enabled and reference images attached using `--image`; inherits the CLI's configured agent model |
+| `gemini` | Any one of `GOOGLE_AI_STUDIO_API_KEY` / `GEMINI_API_KEY` / `GOOGLE_API_KEY` (AI Studio), `VERTEX_AI_KEY` (Vertex Express), or `GOOGLE_GENAI_USE_VERTEXAI=true` + `GOOGLE_CLOUD_PROJECT` / `GOOGLE_CLOUD_LOCATION` (Vertex ADC; location defaults to `us-central1`) | `gemini-3.1-flash-image-preview` via Google GenAI SDK |
+
+Codex uses its CLI login/configuration; Google credentials are only read for `--provider gemini`. The wrapper requests native image generation explicitly, attaches the character first and optional style anchor second, and validates an actual image file before saving the requested output. Each call runs in a temporary `workspace-write` sandbox, cleaned up after the call. It does not bypass the sandbox or silently fall back to Gemini. If native image generation is unavailable, report the error and select Gemini explicitly when appropriate.
+
+See [official Codex image generation documentation](https://learn.chatgpt.com/docs/image-generation) for availability and native CLI usage. Do not treat an agent's `--model` as the image model, or replace this route with an OpenAI Images API call.
+
+### Generation Commands
+
+Run these commands from this skill's directory; use absolute `CHAR_REF` and `OUT_DIR` paths. Create `prompt_a.txt` and `prompt_b.txt` using the prompt structure below, with 16 expressions each.
+
+```bash
+mkdir -p "$OUT_DIR"
+# Default: Codex CLI, with the same character and style across both sheets
+uv run scripts/generate.py "$CHAR_REF" prompt_a.txt "$OUT_DIR/sheet_white_a.png"
+uv run scripts/generate.py "$CHAR_REF" prompt_b.txt "$OUT_DIR/sheet_white_b.png" \
+  --anchor "$OUT_DIR/sheet_white_a.png"
+
+# Alternative: append --provider gemini to both calls
+uv run scripts/generate.py "$CHAR_REF" prompt_a.txt "$OUT_DIR/sheet_white_a.png" --provider gemini
+```
+
+Use the **same provider for both sheets**. After stitching, key and slice with:
+
+```bash
+uv run scripts/key_alpha.py "$OUT_DIR/sheet_white.png" "$OUT_DIR" --rows 8 --cols 4
+```
+
+## Key Finding: Double-Matte Fails with Gemini
+
+The natural "white bg + black bg → α extraction" requires pixel-aligned foregrounds. In the tested Gemini flow, bg-change edits returned the same image. Use **edge flood-fill keying** for both providers (see scripts/key_alpha.py).
 
 ## Inputs
 
@@ -29,8 +63,8 @@ The natural "white bg + black bg → α extraction" requires pixel-aligned foreg
 ## Workflow
 
 ```text
-[1] Generate white-bg 4×8 sheet (two Gemini calls, each 4×4)
-      -> gemini-3.1-flash-image-preview, image-to-image with CHAR_REF
+[1] Generate white-bg 4×8 sheet (two calls, each 4×4)
+      -> Codex CLI (default) or Gemini, with CHAR_REF
       -> Call A: expressions 1–16  -> sheet_white_a.png
       -> Call B: expressions 17–32 -> sheet_white_b.png
       -> Stitch A and B vertically -> sheet_white.png
@@ -46,7 +80,7 @@ The natural "white bg + black bg → α extraction" requires pixel-aligned foreg
 
 ### Why Two Calls
 
-Gemini's image output resolution caps around 1024×1024. A single 4×8 canvas would squash each cell to ~128×256px — too small for clean chibi art. Generating two 4×4 sheets and stitching keeps per-cell resolution at the same quality as 16-sticker sets.
+Two 4×4 sheets keep the 16-expression prompts manageable and give each sticker more canvas space than one dense 4×8 sheet. Use this layout for either provider; actual output dimensions depend on the provider. Do not assume a fixed Gemini resolution cap applies to Codex.
 
 ## Prompt Structure
 
@@ -81,7 +115,7 @@ from PIL import Image
 
 a = Image.open("sheet_white_a.png")
 b = Image.open("sheet_white_b.png")
-# Resize b to match a's width if they differ (Gemini output dims can vary)
+# Resize b to match a's width if they differ (output dimensions can vary)
 if b.width != a.width:
     b = b.resize((a.width, int(b.height * a.width / b.width)), Image.LANCZOS)
 combined = Image.new("RGB", (a.width, a.height + b.height), (255, 255, 255))
@@ -94,14 +128,14 @@ combined.save("sheet_white.png")
 
 - **Lock first, change second.** Open with "Character lock" before anything changes.
 - **Action-first expressions.** `"waterfall tears streaming"` beats `"sad"`. Include a visible prop or gesture.
-- **Be concise.** Overlong prompts (>300 words) trigger `MALFORMED_FUNCTION_CALL`. No negative-list clauses (`must NOT`).
-- **No in-image text.** Gemini cannot reliably render Chinese/Japanese — add captions via PIL post-hoc.
+- **Be concise.** For Gemini, overlong prompts (>300 words) and negative-list clauses have triggered `MALFORMED_FUNCTION_CALL`; shorten/simplify on that error. This is not a Codex prompt limit.
+- **No in-image text for this workflow.** Add captions via PIL post-hoc for consistent wording and typography across providers.
 - **Style vocabulary that works:** `super-deformed 2-head ratio` · `thick uniform bold black ink outline` · `flat cel shading` · `mochi chibi` · `large round pink cheek blush dots`
 - **Character attributes to lock:** hair color, hair length/style, ALL accessories (花饰 must name species: `pink cherry blossom sakura flower hair ornament`), eye color, every garment piece.
 
 ### Expression Diversity Rules
 
-Gemini tends to reuse the same pose for cells that share a column, especially **cells 9 and 13** (column-1 of rows 3–4) and the equivalent pairs in the second sheet (**25 and 29**). Prevent duplicates:
+In Gemini runs, cells sharing a column tended to reuse the same pose, especially **cells 9 and 13** (column-1 of rows 3–4) and the equivalent pairs in the second sheet (**25 and 29**). Apply the same diversity checks to Codex output:
 
 1. **Span all six emotional axes** across the 32 slots — no axis should appear more than 6 times:
 
@@ -114,7 +148,7 @@ Gemini tends to reuse the same pose for cells that share a column, especially **
    | Shy / embarrassed | hands over red face, hiding behind sleeves |
    | Calm / smug | arms crossed, side-eye, tea-sipping |
 
-2. **Assign a distinct body verb to every cell.** If two cells share the same verb (e.g., both "crying"), Gemini collapses them. Make verbs orthogonal: `waterfall-tears arms-spread` ≠ `single-teardrop hands-clasped`.
+2. **Assign a distinct body verb to every cell.** Similar verbs (e.g., both "crying") can collapse into duplicate poses. Make verbs orthogonal: `waterfall-tears arms-spread` ≠ `single-teardrop hands-clasped`.
 
 3. **Critical column-1 pairs: 9 & 13, and 25 & 29 must each differ in both emotion axis AND body posture.** Write each pair side by side before finalising and check they are visually distinguishable.
 
@@ -166,7 +200,7 @@ Call B (sheet 2, expressions 17–32):
 
 ## Grid Slicing: Auto-Detect Boundaries
 
-Gemini does **not** divide the canvas into equal cells. Row/column heights vary (e.g., top row 550px vs. bottom row 480px). Hard `image_size / 4` cuts cause sticker overflow into adjacent cells.
+Generated grids may have uneven cells. Row/column heights vary (e.g., top row 550px vs. bottom row 480px in Gemini runs). Hard `image_size / 4` cuts cause sticker overflow into adjacent cells; inspect this for both providers.
 
 After stitching the two 4×4 sheets into one 4×8 canvas, run `_find_cuts()` on the combined image. Pass `n_rows=8, n_cols=4`.
 
@@ -206,11 +240,13 @@ Interior white pixels (shirt, skin highlights) are enclosed by foreground and ne
 
 ## Retry Pattern
 
-Gemini 3 image models have three transient failure modes:
+**Codex:** each invocation has a 900-second timeout. A failed CLI exit, text-only response, missing output file, or unreadable image is an error. Check `codex login status` and native image-generation availability before retrying. No automatic retries or provider switching are performed by the wrapper.
+
+**Gemini:** the SDK wrapper retains the following retry behavior:
 
 | Symptom | Action |
 |---|---|
-| `503 UNAVAILABLE` / `429 RESOURCE_EXHAUSTED` | Exponential back-off (`2^attempt * 5s`), 6 retries |
+| `503 UNAVAILABLE` / `429 RESOURCE_EXHAUSTED` | Exponential back-off (`2^attempt * 5s`), up to 6 attempts |
 | `FinishReason.MALFORMED_FUNCTION_CALL` | Shorten/simplify prompt; remove negative clauses |
 | `resp.parts` is `None`, only text returned | Retry; tighten the lock clause |
 
@@ -218,22 +254,20 @@ See `scripts/generate.py` for the full retry wrapper.
 
 ## Cross-Sheet Consistency (32-sticker specific)
 
-Two separate Gemini calls will often produce slightly different rendering — brightness, line weight, palette temperature, or shading style may drift. Control it with the following steps:
+Two separate calls can produce slightly different rendering — brightness, line weight, palette temperature, or shading style may drift. Keep the provider fixed and control it with the following steps:
 
 ### 1. Lock the style prompt byte-for-byte
 
-Copy the exact art-style paragraph and character-lock paragraph from Call A into Call B without any edits. Even synonym substitutions (`circular` vs `round`) can shift Gemini's style.
+Copy the exact art-style paragraph and character-lock paragraph from Call A into Call B without any edits. Even synonym substitutions (`circular` vs `round`) can shift the rendering style.
 
 ### 2. Submit Call B with the sheet_white_a.png as additional reference
 
-Pass `sheet_white_a.png` alongside `CHAR_REF` as the image input for Call B. Gemini will use it as a visual anchor. Example (google-generativeai SDK):
+Pass `sheet_white_a.png` alongside `CHAR_REF` for Call B. Both providers support this through the same CLI:
 
-```python
-parts = [
-    PIL_to_part(char_ref_img),
-    PIL_to_part(sheet_a_img),  # style anchor
-    types.Part(text=prompt_b),
-]
+```bash
+uv run scripts/generate.py "$CHAR_REF" prompt_b.txt "$OUT_DIR/sheet_white_b.png" \
+  --anchor "$OUT_DIR/sheet_white_a.png"
+# Append --provider gemini if Call A used Gemini.
 ```
 
 ### 3. Post-process for brightness/contrast parity
@@ -268,16 +302,16 @@ Open `sheet_white.png` and scan for:
 - Palette temperature shift (warmer/cooler tones)
 - Hair color drift across the boundary row
 
-If drift is visible, re-run Call B with a slightly adjusted prompt (e.g., add `"same warm creamy pastel palette as reference sheet"`) and a fresh seed. Repeat QC.
+If drift is visible, re-run Call B with a slightly adjusted prompt (e.g., add `"same warm creamy pastel palette as reference sheet"`). Repeat QC.
 
 ### 5. Common cross-sheet failure modes
 
 | Symptom | Cause | Fix |
 |---|---|---|
-| Sheet B looks sketch-like, less shaded | Gemini skipped cel-shading | Add `"flat cel shading, no sketch lines"` to Call B prompt |
+| Sheet B looks sketch-like, less shaded | Model skipped cel-shading | Add `"flat cel shading, no sketch lines"` to Call B prompt |
 | Hair color changes between row 4 and row 5 | Character lock didn't persist | Repeat exact hex color code in Call B character lock |
 | Sheet B overall darker | Different generation context | Apply brightness correction (step 3) |
-| Outline weight visibly thinner in sheet B | Gemini style variance | Add `"thick uniform bold black ink outline, same line weight as reference"` |
+| Outline weight visibly thinner in sheet B | Cross-call style variance | Add `"thick uniform bold black ink outline, same line weight as reference"` |
 
 ## Common Mistakes
 
@@ -289,7 +323,8 @@ If drift is visible, re-run Call B with a slightly adjusted prompt (e.g., add `"
 | Grid lines appear in output | Add `seamless pure white, no grid lines, no cell borders` to prompt |
 | Hair color drifts across cells | Repeat exact color spec as first item in "character lock" |
 | `image.size` AttributeError | `part.as_image()` returns genai Image, not PIL; convert via `Image.open(io.BytesIO(img.image_bytes))` |
-| Adjacent sticker bleeds into cell | Gemini grid is uneven; use `_find_cuts()` dark-profile detection, not `image_size // 4` |
+| Adjacent sticker bleeds into cell | Generated grid is uneven; use `_find_cuts()` dark-profile detection, not `image_size // 4` |
+| Codex exits successfully but only returns prose | Require a readable generated image; inspect the error and retry or explicitly select Gemini |
 | White clothing becomes transparent | Outline gaps let flood reach fabric; set `OUTLINE_DILATE=2` to dilate outline before flood-fill |
 
 ## WeChat Submission Extras
@@ -297,12 +332,13 @@ If drift is visible, re-run Call B with a slightly adjusted prompt (e.g., add `"
 Each sticker set needs three additional assets. Generate with `scripts/generate_extras.py`:
 
 ```bash
-uv run generate_extras.py <sticker_dir> <char_ref_image> "<theme hint>"
+uv run scripts/generate_extras.py <sticker_dir> <char_ref_image> "<theme hint>"
+# Append --provider gemini to generate the banner with Gemini instead.
 ```
 
 | Asset | Spec | How produced |
 |---|---|---|
-| `banner.png` | 750×400 PNG, colorful bg, no text | Gemini image-to-image, 16:9 → center-crop |
+| `banner.png` | 750×400 PNG, colorful bg, no text | Codex CLI (default) or Gemini, 16:9 → center-crop |
 | `cover.png` | 240×240 transparent PNG, half/full body | Cell 07 (thumbs-up) resized with PIL |
 | `icon.png` | 50×50 transparent PNG, head shot | Cell 07 full cell resized (no crop — chibi proportions fit naturally) |
 
@@ -323,10 +359,11 @@ uv run generate_extras.py <sticker_dir> <char_ref_image> "<theme hint>"
 `scripts/generate_banner.py` produces a standalone banner for any registered platform — independent of the WeChat extras flow. WeChat itself is one preset; Twitter/X is another. New platforms are added by appending to the `PLATFORMS` dict.
 
 ```bash
-uv run generate_banner.py <char_ref> "<theme>" <out_path> --platform twitter
+uv run scripts/generate_banner.py <char_ref> "<theme>" <out_path> --platform twitter
+# Append --provider gemini for the alternative provider.
 ```
 
-| Platform | Size | Gemini AR | Crop |
+| Platform | Size | Source AR (both providers) | Crop |
 |---|---|---|---|
 | `wechat` | 750×400 | `16:9` | minimal (~6% vertical trim) |
 | `twitter` | 1500×500 | `16:9` | aggressive (middle 56% only) |
@@ -335,7 +372,7 @@ Each preset is a `Platform(width, height, aspect_ratio, composition_hint)`. The 
 
 ### Letterbox Lesson (Extreme Aspect Ratios)
 
-Gemini 3 image preview only supports a fixed aspect-ratio menu (`1:1`, `4:3`, `3:4`, `16:9`, `9:16`). For ratios more extreme than 16:9 (Twitter 3:1, LinkedIn 4:1) we generate at 16:9 then center-crop the middle band. The naive prompt strategy fails in two opposite ways:
+The existing presets request a 16:9 source canvas from either provider, then center-crop to the platform size. This retains the Gemini-tested composition strategy without assuming Codex shares Gemini's aspect-ratio limits. For Twitter 3:1, the middle 56% of a 16:9 source survives. The naive prompt strategy failed in two opposite ways in Gemini runs:
 
 | Prompt told Gemini | Failure mode |
 |---|---|

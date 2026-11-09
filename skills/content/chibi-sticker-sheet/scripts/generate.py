@@ -1,17 +1,18 @@
 # /// script
 # dependencies = ["google-genai", "Pillow", "python-dotenv"]
 # ///
-"""Generate a chibi sticker sheet via Gemini image-to-image.
+"""Generate a chibi sticker sheet via Codex CLI (default) or Gemini.
 
 Usage:
-    uv run generate.py <char_ref_image> <prompt_file> [output.png] [--anchor style_anchor.png]
+    uv run generate.py <char_ref_image> <prompt_file> [output.png] [--anchor style_anchor.png] [--provider codex|gemini]
 
     char_ref_image  : character reference PNG/JPEG
     prompt_file     : plain-text file containing the full generation prompt
     output.png      : destination (default: sheet_white.png next to char_ref)
     --anchor        : optional style-anchor image (e.g. sheet_white_a.png for Call B)
 
-Environment (any one auth path):
+Codex: install Codex CLI, run `codex login`, and enable native image generation.
+Gemini environment (only with --provider gemini; any one auth path):
     GOOGLE_AI_STUDIO_API_KEY | GEMINI_API_KEY | GOOGLE_API_KEY          (AI Studio)
     VERTEX_AI_KEY                                                       (Vertex Express)
     GOOGLE_GENAI_USE_VERTEXAI=true + GOOGLE_CLOUD_PROJECT/LOCATION       (Vertex ADC)
@@ -23,14 +24,18 @@ from __future__ import annotations
 
 import io
 import os
-import sys
+import shutil
+import subprocess
+import tempfile
 import time
 from pathlib import Path
+from typing import TYPE_CHECKING
 
-from dotenv import load_dotenv
-from google import genai
-from google.genai import types
 from PIL import Image
+
+if TYPE_CHECKING:
+    from google import genai
+    from google.genai import types
 
 MODEL = "gemini-3.1-flash-image-preview"
 
@@ -44,6 +49,8 @@ ENV_CANDIDATES = [
 
 
 def _load_env() -> None:
+    from dotenv import load_dotenv
+
     for p in ENV_CANDIDATES:
         if p.exists():
             load_dotenv(p)
@@ -57,6 +64,8 @@ def _is_vertex() -> bool:
 
 def _make_client() -> genai.Client:
     """Resolve auth: Vertex Express → Vertex ADC → AI Studio."""
+    from google import genai
+
     _load_env()
     if vkey := os.environ.get("VERTEX_AI_KEY"):
         return genai.Client(vertexai=True, api_key=vkey)
@@ -72,7 +81,7 @@ def _make_client() -> genai.Client:
         or os.environ.get("GOOGLE_API_KEY")
     )
     if not key:
-        raise EnvironmentError(
+        raise OSError(
             "No API key. Set one of: VERTEX_AI_KEY, GOOGLE_AI_STUDIO_API_KEY, "
             "GEMINI_API_KEY, GOOGLE_API_KEY; or GOOGLE_GENAI_USE_VERTEXAI=true "
             "with GOOGLE_CLOUD_PROJECT/LOCATION."
@@ -80,22 +89,29 @@ def _make_client() -> genai.Client:
     return genai.Client(api_key=key)
 
 
-def _image_config(aspect_ratio: str, image_size: str) -> types.ImageConfig:
+def _image_config(aspect_ratio: str, image_size: str | None) -> types.ImageConfig:
     """Vertex does NOT accept image_size — drop it there."""
-    if _is_vertex():
+    from google.genai import types
+
+    if _is_vertex() or image_size is None:
         return types.ImageConfig(aspect_ratio=aspect_ratio)
     return types.ImageConfig(aspect_ratio=aspect_ratio, image_size=image_size)
 
 
-def generate_sheet(prompt: str, char_ref: Image.Image, anchor: Image.Image | None = None) -> Image.Image:
-    """Call Gemini with retry; return PIL Image.
+def _generate_gemini(
+    prompt: str, char_ref: Image.Image, anchor: Image.Image | None,
+    aspect_ratio: str, image_size: str | None,
+) -> Image.Image:
+    """Call Gemini with retry; return a detached RGB image.
 
     anchor: optional style-anchor image (e.g. sheet_white_a.png for Call B cross-sheet consistency).
     """
+    from google.genai import types
+
     client = _make_client()
     cfg = types.GenerateContentConfig(
         response_modalities=["TEXT", "IMAGE"],
-        image_config=_image_config(aspect_ratio="1:1", image_size="2K"),
+        image_config=_image_config(aspect_ratio=aspect_ratio, image_size=image_size),
     )
     contents = [char_ref]
     if anchor is not None:
@@ -136,14 +152,89 @@ def generate_sheet(prompt: str, char_ref: Image.Image, anchor: Image.Image | Non
     raise RuntimeError("generation failed after 6 attempts")
 
 
+def _generate_codex(
+    prompt: str, char_ref: Image.Image, anchor: Image.Image | None, aspect_ratio: str,
+) -> Image.Image:
+    """Run native Codex image generation in an isolated writable workspace."""
+    executable = shutil.which("codex")
+    if executable is None:
+        raise RuntimeError("Codex CLI not found. Install it and run `codex login`, or use --provider gemini.")
+
+    with tempfile.TemporaryDirectory(prefix="chibi-codex-") as directory:
+        workspace = Path(directory).resolve()
+        reference = workspace / "character.png"
+        char_ref.save(reference, "PNG")
+        output = workspace / "generated.png"
+        last_message = workspace / "result.txt"
+        command = [
+            executable, "--ask-for-approval", "never", "exec",
+            "--sandbox", "workspace-write", "--skip-git-repo-check", "--ephemeral",
+            "--enable", "image_generation", "--cd", str(workspace),
+            "--image", str(reference),
+        ]
+        if anchor is not None:
+            anchor_path = workspace / "style-anchor.png"
+            anchor.save(anchor_path, "PNG")
+            command.extend(["--image", str(anchor_path)])
+        command.extend(["--output-last-message", str(last_message), "-"])
+        instructions = (
+            "$imagegen\nUse native image_generation to generate exactly one image. "
+            "The first attached image defines the character identity. "
+            + ("The second attached image is a style anchor; preserve its palette, shading and line weight. " if anchor is not None else "")
+            + f"Request a {aspect_ratio} canvas.\n\n{prompt}\n\n"
+            f"Save or copy the actual generated image as a PNG to {output}. "
+            "Use the image generation tool, not programmatic drawing, SVG, or a text-only response. "
+            "If native image generation is unavailable, stop and report the error. "
+            "Do not call external image APIs or switch providers."
+        )
+        try:
+            result = subprocess.run(
+                command, input=instructions, text=True, capture_output=True,
+                cwd=workspace, timeout=900, check=False,
+            )
+        except subprocess.TimeoutExpired as exc:
+            raise RuntimeError("Codex image generation timed out after 900 seconds.") from exc
+        if result.returncode:
+            detail = (result.stderr or result.stdout)[-4000:]
+            raise RuntimeError(f"Codex CLI failed (exit {result.returncode}): {detail}")
+        if not output.is_file():
+            detail = last_message.read_text(encoding="utf-8") if last_message.exists() else result.stdout
+            raise RuntimeError(f"Codex did not produce generated.png: {detail[-4000:]}")
+        try:
+            with Image.open(output) as image:
+                return image.convert("RGB")
+        except OSError as exc:
+            raise RuntimeError("Codex produced an unreadable image.") from exc
+
+
+def generate_image(
+    prompt: str, char_ref: Image.Image, anchor: Image.Image | None = None, *,
+    provider: str = "codex", aspect_ratio: str = "1:1", image_size: str | None = None,
+) -> Image.Image:
+    """Select one provider explicitly; failures never switch providers."""
+    if provider == "codex":
+        return _generate_codex(prompt, char_ref, anchor, aspect_ratio)
+    if provider == "gemini":
+        return _generate_gemini(prompt, char_ref, anchor, aspect_ratio, image_size)
+    raise ValueError(f"Unknown image provider: {provider}")
+
+
+def generate_sheet(
+    prompt: str, char_ref: Image.Image, anchor: Image.Image | None = None, *,
+    provider: str = "codex",
+) -> Image.Image:
+    return generate_image(prompt, char_ref, anchor, provider=provider, image_size="2K")
+
+
 def main() -> None:
     import argparse
 
-    parser = argparse.ArgumentParser(description="Generate a chibi sticker sheet via Gemini.")
+    parser = argparse.ArgumentParser(description="Generate a chibi sticker sheet via Codex CLI or Gemini.")
     parser.add_argument("char_ref", help="Character reference image path")
     parser.add_argument("prompt_file", help="Plain-text prompt file")
     parser.add_argument("output", nargs="?", default=None, help="Output PNG path")
     parser.add_argument("--anchor", default=None, help="Style anchor image (for Call B cross-sheet consistency)")
+    parser.add_argument("--provider", choices=("codex", "gemini"), default="codex", help="Image provider (default: codex)")
     args = parser.parse_args()
 
     char_ref_path = Path(args.char_ref)
@@ -153,15 +244,19 @@ def main() -> None:
     char_ref = Image.open(char_ref_path)
     anchor = Image.open(args.anchor) if args.anchor else None
     prompt = prompt_path.read_text(encoding="utf-8").strip()
+    if not prompt:
+        parser.error("Prompt file must not be empty")
 
     print(f"character ref : {char_ref_path.name} {char_ref.size}")
     if anchor:
         print(f"style anchor  : {args.anchor}")
     print(f"prompt        : {len(prompt)} chars, first line: {prompt.splitlines()[0][:80]}")
     print(f"output        : {out_path}")
+    print(f"provider      : {args.provider}")
     print("generating...")
 
-    sheet = generate_sheet(prompt, char_ref, anchor=anchor)
+    sheet = generate_sheet(prompt, char_ref, anchor=anchor, provider=args.provider)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
     sheet.save(out_path)
     print(f"saved {out_path} {sheet.size}")
 

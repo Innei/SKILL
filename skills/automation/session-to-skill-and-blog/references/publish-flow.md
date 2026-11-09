@@ -38,8 +38,9 @@ Agent loop:
 4. When the user says done, read the final state with
    `mxs draft cat <draftId>`. There is no diff file; compare against what
    you wrote only if you need to know what they changed.
-5. Continue with the no-ai-slop sweep on that output. Report findings; the
-   user fixes them in the editor, or asks you to `patch` them.
+5. Continue with the anti-slop sweep on that output (`writing-style.md` ›
+   External sweep: lieflat for Chinese, no-ai-slop for English). Report
+   findings; the user fixes them in the editor, or asks you to `patch` them.
 
 Keep authoring sources `<doc>`-wrapped when editing bare fragments —
 inter-block whitespace otherwise becomes root-level text nodes (Lexical

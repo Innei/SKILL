@@ -647,6 +647,23 @@ scripts/render_html.py \
 - Compress before adding: ≤ 1400 px wide, JPEG ~80, so the self-contained file stays under a megabyte.
 - A figure whose numbers are not also in `结果` is decoration; delete it.
 
+**Charts.** A series you pulled yourself (Vercel metrics, billing usage) goes in as a fenced ` ```chart ` block holding one JSON object, placed after the 证据 line like a figure. The LobeHub editor turns the fence into a native chart node, so `render_md.py` passes it through untouched; `render_html.py` draws the same spec as inline SVG (`scripts/chart_svg.py`).
+
+````markdown
+```chart
+{"version":1,"type":"area","title":"/api/x 请求数（每 4 小时，UTC）","x":"t",
+ "series":[{"key":"req","label":"请求"}],
+ "data":[{"t":"11-06 08","req":37967},{"t":"11-06 12","req":6414},{"t":"11-06 16","req":39}],
+ "format":{"compact":true},"note":"修复落在 11-06 12Z","source":"vercel metrics · 11-09 查询"}
+```
+````
+
+- Required: `type` (`bar` / `line` / `area`; `pie` is editor-only and stays a code block in HTML), `x`, `series` (`{key, label}`), `data` (every row has `x` and a finite number per series key).
+- Optional: `title`, `subtitle`, `note`, `source` (all go into the HTML caption), `format` (`unit`, `compact`, `decimals`, `signed`), `y` (`min` / `max`).
+- `source` names the query and when it ran. A chart carries the same scope rules as a number in `结果`: the baseline that argues against the work goes into the same chart (`market（本周未改）` beside `landing-rr`).
+- Keep x labels short (≤ 6 CJK chars or ~12 ASCII); long labels collide in the SVG.
+- Pulling the data: `vercel metrics <metric> --project=… --scope=… --filter=… --granularity=… --format=json` needs Observability Plus on that team; without it fall back to `vercel usage --breakdown=daily` (team-level) or `--group-by=project` (range totals). Use `pricingQuantity`, not `billedCost`: at a billing-period boundary included credits zero out `billedCost` and fake a drop. Pass every flag as `--flag=value`; `vercel metrics -p … -F json` crashes the CLI's arg parser.
+
 **Degradation**: if the markdown lacks the expected header paragraphs or
 an `附录` section, the script still renders a plain themed page without
 the meta grid or the collapsed appendix. It never raises.

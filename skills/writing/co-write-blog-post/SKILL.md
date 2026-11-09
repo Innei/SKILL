@@ -124,7 +124,7 @@ smoother paragraph — runs this loop once per request):
    | ------- | ---- |
    | Diagram (画图, 流程图, 时序图) | `$REFS/visuals.md`, then LiteXML syntax via `bash "$S/load-litexml.sh"`; Excalidraw scenes go in as uploaded files per "Assets" |
    | Rewrite, tighten, continue a passage | `$REFS/writing-style.md` with the narrator from [0] |
-   | Write or rewrite a section of a technical post | `$REFS/writing-style.md` and `$REFS/visuals.md` › Technical posts are illustrated by default: the section ships with its visual in the same patch, and prose the visual carries is cut |
+   | Write or rewrite a section of a technical post | `$REFS/writing-style.md` and `$REFS/visuals.md` › Technical posts are illustrated by default and › Architecture over implementation: the section ships with its visual in the same patch, explains why and the architecture without code, and prose the visual carries is cut |
    | Image / screenshot | "Assets" below |
    | Excalidraw scene, chart data, any JSON or file the article references | "Assets" below |
    | Interactive widget or special node | `$REFS/node-usage.md` |
@@ -192,9 +192,11 @@ When the human says 写完了 / done:
 
 1. `mxs draft cat <id>` for the final state. There is no diff file; compare
    with what you wrote only if you need to know what the human changed.
-2. Run the no-ai-slop detect sweep (`bash "$S/load-no-ai-slop.sh"`) on that
-   output and list findings in chat; the human edits in the browser or asks
-   you to patch a specific one. Never auto-rewrite.
+2. Run the anti-slop sweep from `$REFS/writing-style.md` › External sweep
+   on that output (Chinese: `load-lieflat.sh` + `litexml-to-md.py` +
+   `detect.py`; English: `load-no-ai-slop.sh`) and list findings in chat,
+   quoting each sentence. The human edits in the browser or asks you to
+   patch a specific one. Never auto-rewrite.
 3. Wait until the human says the slop fixes are done, then propose the AI
    disclosure from the draft's `<ai-gen>` and let the human confirm: `-1`
    handmade (agent changed nothing), `0` assist (rewrote or drafted
@@ -228,6 +230,11 @@ Publish only after the human approves the draft preview.
 | Rewriting neighbouring blocks "while there" | Touch only the requested blocks. |
 | A technical section that lists dates, structure, or numbers as prose | Draw the relationship (Gantt, structure, flow, bars) and cut the enumerating prose. |
 | Raw `<br/>` inside `<mermaid>` (patch exits 5) | Write `&lt;br/&gt;`. |
+| `<tags>` as a comma list or JSON array (patch exits 5, "unknown tag") | One `<tag>` child per tag: `<tags><tag>iOS</tag><tag>UIKit</tag></tags>`. `<related-id>` takes a JSON array of post ids; pick them from `mxs post list --page N --size 50 --output llm` by topic. |
+| JSX like `<span …/>` in a `<codeblock>` CDATA body (patch exits 5, "unknown tag") | Drop CDATA and escape the body: `&amp;`, `&lt;`, `&gt;`. |
+| A code snippet, or prose walking through how something was implemented | Draw the architecture the code embodies; keep only why and the design (`$REFS/visuals.md` › Architecture over implementation). No code reference implementations. |
+| A table of pitfalls and their workarounds | Redraw it as a layer diagram with each problem annotated on the layer that caused it. |
+| Writing an in-flight effort as status ("正在写", "还没提交", run times, "还没量") | Write the idea, how to prove it works, and the path forward; keep results only as evidence for the proof. |
 | Publishing on 写完了 | 写完了 starts the finish sweep; publishing needs an explicit yes. |
 | `aiGen=2` on a co-written post | Patch `<ai-gen>` to the confirmed value. |
 

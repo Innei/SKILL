@@ -4,7 +4,7 @@
 """Generate WeChat sticker submission extras: banner, cover, icon.
 
 Usage:
-    uv run generate_extras.py <sticker_dir> <char_ref_image> <theme_hint>
+    uv run generate_extras.py <sticker_dir> <char_ref_image> <theme_hint> [--provider codex|gemini]
 
     sticker_dir    : directory that already contains cells/*.png
     char_ref_image : original character reference PNG used for sticker generation
@@ -23,17 +23,16 @@ WeChat requirements recap:
 
 from __future__ import annotations
 
-import sys
+import argparse
 from pathlib import Path
 
+from generate_banner import PLATFORMS
+from generate_banner import generate_banner as _gen_banner
 from PIL import Image
 
-sys.path.insert(0, str(Path(__file__).parent))
-from generate_banner import PLATFORMS, generate_banner as _gen_banner
 
-
-def generate_banner(char_ref: Image.Image, theme: str) -> Image.Image:
-    return _gen_banner(char_ref, theme, PLATFORMS["wechat"])
+def generate_banner(char_ref: Image.Image, theme: str, *, provider: str = "codex") -> Image.Image:
+    return _gen_banner(char_ref, theme, PLATFORMS["wechat"], provider=provider)
 
 
 def make_cover(cell: Image.Image) -> Image.Image:
@@ -62,13 +61,15 @@ def _pick_cover_cell(cells_dir: Path) -> Path:
 
 
 def main() -> None:
-    if len(sys.argv) < 4:
-        print(__doc__)
-        sys.exit(1)
-
-    sticker_dir = Path(sys.argv[1])
-    char_ref_path = Path(sys.argv[2])
-    theme = sys.argv[3]
+    parser = argparse.ArgumentParser(description="Generate WeChat banner, cover and icon.")
+    parser.add_argument("sticker_dir", type=Path)
+    parser.add_argument("char_ref", type=Path)
+    parser.add_argument("theme_hint")
+    parser.add_argument("--provider", choices=("codex", "gemini"), default="codex", help="Image provider (default: codex)")
+    args = parser.parse_args()
+    sticker_dir = args.sticker_dir
+    char_ref_path = args.char_ref
+    theme = args.theme_hint
 
     cells_dir = sticker_dir / "cells"
     cover_cell_path = _pick_cover_cell(cells_dir)
@@ -91,8 +92,8 @@ def main() -> None:
     icon.save(icon_path, "PNG")
     print(f"saved icon  : {icon_path} {icon.size}")
 
-    print("generating banner via Gemini...")
-    banner = generate_banner(char_ref, theme)
+    print(f"generating banner via {args.provider}...")
+    banner = generate_banner(char_ref, theme, provider=args.provider)
     banner_path = sticker_dir / "banner.png"
     banner.save(banner_path, "PNG")
     print(f"saved banner: {banner_path} {banner.size}")

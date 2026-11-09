@@ -29,6 +29,7 @@ HERE = Path(__file__).resolve().parent
 TEMPLATE_PATH = HERE / "templates" / "report.html"
 sys.path.insert(0, str(HERE))
 
+from chart_svg import caption_html, parse_spec, render_svg
 from pr_stats import CANONICAL, build_stats  # noqa: E402
 
 CONVENTIONAL = r"feat|fix|refactor|perf|build|ci|chore|docs|test|style|revert"
@@ -350,6 +351,22 @@ def inline_images(soup: BeautifulSoup, assets_dir: Optional[str]) -> None:
             fig.append(cap)
 
 
+def render_charts(soup: BeautifulSoup) -> None:
+    for code in soup.select("pre > code.language-chart"):
+        spec = parse_spec(code.get_text())
+        if spec is None:
+            continue
+        fig = soup.new_tag("figure")
+        fig["class"] = "chart"
+        fig.append(BeautifulSoup(render_svg(spec), "html.parser"))
+        caption = caption_html(spec)
+        if caption:
+            cap = soup.new_tag("figcaption")
+            cap.append(BeautifulSoup(caption, "html.parser"))
+            fig.append(cap)
+        code.parent.replace_with(fig)
+
+
 def _slug_chunk(text: str) -> str:
     ascii_part = re.sub(r"[^a-zA-Z0-9\-_]+", "-", text)
     ascii_part = re.sub(r"-+", "-", ascii_part).strip("-").lower()
@@ -572,6 +589,7 @@ def main() -> int:
         str(Path(args.markdown).expanduser().parent) if args.markdown != "-" else None
     )
     inline_images(soup, assets_dir)
+    render_charts(soup)
 
     # 6. Per-repo sections → <details>
     wrap_repos_into_details(soup)
