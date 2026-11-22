@@ -130,7 +130,7 @@ Returns JSON to stdout:
   "config": { "author": "...", "orgs": [...], "repos": [...], "include_commits": true, "linear": {...}, "output": {...} },
   "github": {
     "owner/repo": {
-      "prs_merged":  [...],  // reconstructed from commit (#NNN) refs → /repos/{r}/pulls/{n}
+      "prs_merged":  [...],  // reconstructed from commit (#NNN) / "Merge pull request #NNN" refs → /repos/{r}/pulls/{n}
       "prs_open":    [...],  // /repos/{r}/pulls?state=open, filtered by author + updated window
       "commits":     [...],  // /repos/{r}/commits?author=&since=&until=
       "issues":      [...]   // /repos/{r}/issues?assignee=&since=, PRs filtered out
@@ -154,7 +154,7 @@ Returns JSON to stdout:
 
 1. `GET /orgs/{org}/repos` — page through every repo (incl. private), then merge with explicit `repos`.
 2. Per-repo `GET /repos/{r}/commits?author=...&since/until` — concurrent (16 workers). Commits filtered by GIT author + merge date window. Empty repos (HTTP 409) and archived repos (404) are silently skipped.
-3. **Merged PRs are reconstructed** from commit message refs: every `(#NNN)` in a commit message becomes a `GET /repos/{r}/pulls/{n}` call. Because commit dates are merge dates, these PRs are guaranteed merged in window.
+3. **Merged PRs are reconstructed** from commit message refs: every `(#NNN)` in a commit subject, and the `#NNN` of a `Merge pull request #NNN from …` merge commit, becomes a `GET /repos/{r}/pulls/{n}` call. Because commit dates are merge dates, these PRs are guaranteed merged in window. A merge commit is authored by whoever pressed merge, so a PR found only that way is kept only when its own author is `github.user`.
 4. For "active" repos (had commits) plus explicit repos, fetch open PRs (`/pulls?state=open`) and assigned issues (`/issues`), filter by author + updatedAt client-side.
 
 Set `github.include_commits: false` to skip steps 2-3 entirely (only open PRs / issues on the explicit repo list).

@@ -6,9 +6,11 @@ Strategy (REST-only, no GitHub Search index):
 1. Expand orgs to all repos via `GET /orgs/{org}/repos` (paginated, includes private).
 2. For every repo (org-expanded + explicit), fetch commits filtered by
    `author=` and `since/until` window via `/repos/{repo}/commits`.
-3. Reconstruct merged PRs by extracting `(#NNN)` refs from commit messages and
-   calling `/repos/{repo}/pulls/{n}` per ref. Commit dates are merge dates, so
-   the resulting PRs are guaranteed merged in window.
+3. Reconstruct merged PRs from commit subjects — squash/rebase `(#NNN)` refs
+   and merge commits `Merge pull request #NNN from …` — and call
+   `/repos/{repo}/pulls/{n}` per ref. Commit dates are merge dates, so the
+   resulting PRs are guaranteed merged in window. A merge commit's author is
+   whoever pressed merge, so those PRs are kept only when the PR author matches.
 4. For "active" repos (those with commits) plus explicit repos, fetch open PRs
    (`/repos/{r}/pulls?state=open`) and assigned issues (`/repos/{r}/issues`),
    then filter by author + updated window client-side.
@@ -29,6 +31,7 @@ import sys
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 PR_NUM_RE = re.compile(r"\(#(\d+)\)")
+MERGE_PR_RE = re.compile(r"^Merge pull request #(\d+) from ")
 MAX_WORKERS = 16
 
 
@@ -95,6 +98,7 @@ def _normalize_pr(data: dict, repo: str) -> dict:
             "name": repo.split("/")[-1],
             "nameWithOwner": repo,
         },
+        "author": ((data.get("user") or {}).get("login") or ""),
         "body": (data.get("body") or "")[:1500],
     }
 
@@ -251,16 +255,17 @@ def collect(
                 if cs:
                     commit_map[r] = cs
 
-    # 2. Reconstruct merged PRs from commit message refs
-    pr_refs: list[tuple[str, int]] = []
-    seen: set[tuple[str, int]] = set()
+    # 2. Reconstruct merged PRs from commit message refs. Refs found only in
+    # merge commits must also be authored by `author` (see module docstring).
+    pr_refs: dict[tuple[str, int], bool] = {}  # key -> needs PR-author check
     for r, cs in commit_map.items():
         for c in cs:
             for m in PR_NUM_RE.finditer(c["message"]):
-                key = (r, int(m.group(1)))
-                if key not in seen:
-                    seen.add(key)
-                    pr_refs.append(key)
+                pr_refs[(r, int(m.group(1)))] = False
+            m = MERGE_PR_RE.match(c["message"])
+            if m:
+                pr_refs.setdefault((r, int(m.group(1))), True)
+    author_lower = author.lower()
 
     g_merged: dict[str, list] = {}
     if pr_refs:
@@ -273,8 +278,11 @@ def collect(
                 except Exception as e:
                     print(f"[err] pr {futs[fut]}: {e}", file=sys.stderr)
                     continue
-                if data and data.get("state") == "merged":
-                    g_merged.setdefault(r, []).append(data)
+                if not data or data.get("state") != "merged":
+                    continue
+                if pr_refs[futs[fut]] and data["author"].lower() != author_lower:
+                    continue
+                g_merged.setdefault(r, []).append(data)
     for r in g_merged:
         g_merged[r].sort(key=lambda p: p.get("number") or 0, reverse=True)
 
