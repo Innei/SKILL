@@ -24,7 +24,7 @@ relationship the prose is enumerating and draw it instead:
 - dates or versions listed in a sentence → timeline or Gantt
 - package, module, or ownership layout → structure diagram
 - a numbered sequence of steps or a loop → flow diagram
-- before/after or side-by-side numbers → `before-after-bars` widget or plot
+- numbers compared across rows, versions or time → `<chart>`
 
 Then cut the prose the visual now carries and keep only the reading order and
 the conclusion. A section of three or more paragraphs that enumerates
@@ -55,8 +55,8 @@ it does not walk through how it was implemented.
 | Exact actor-to-actor message order | Mermaid sequence diagram | Lifelines and ordered messages are the model |
 | A concrete failure or recovery sequence | Numbered trace; diagram only when branches or concurrent state matter | Exact events matter more than visual polish |
 | Alternatives with enumerable properties | Table | Shared axes make the comparison inspectable |
-| A quantitative relationship | Plot generated from named data | Shape, scale, and outliers support the claim |
-| A parameter space or process the reader should explore | Cataloged `<dynamic>` widget | The reader's action reveals behavior that static examples cannot enumerate |
+| A quantitative relationship | `<chart>` built from named data | Shape, scale, and outliers support the claim |
+| A parameter space or process the reader should explore (not a fixed comparison: that is a `<chart>`) | Cataloged `<dynamic>` widget | The reader's action reveals behavior that static examples cannot enumerate |
 
 Use the simplest medium that preserves the relationship. A screenshot cannot
 substitute for an architecture model; a diagram cannot prove an observed UI

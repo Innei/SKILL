@@ -39,7 +39,7 @@ Escalate only when the current level demonstrably fails. Never skip levels
 2 verbatim artifacts    codeblock / code-snippet — exactness required
 3 structured facts      table / grid — shape carries the meaning
 4 semantic signal       alert / banner — reader must not miss this
-5 diagram & media       excalidraw / mermaid / img / gallery / video / embed
+5 diagram & media       excalidraw / mermaid / chart / img / gallery / video / embed
 6 containers            details / nested-doc — flow control for evidence
 7 interactive           poll / chat / dynamic — the reader's action carries
                         the lesson (see "When interaction teaches")
@@ -55,6 +55,8 @@ Escalate only when the current level demonstrably fails. Never skip levels
 | Genuinely useful aside that most readers can skip | Plain prose or a parenthetical; `<alert type="tip|note">` only when missing it breaks the reader's task | Tip-alert every few paragraphs |
 | The post itself is outdated / superseded / time-boxed (deprecation notice, "broken as of vX") | `<banner>` (max 1, at top) | Banner as a styled intro, a skill/source pointer, or a section divider |
 | Comparing enumerable facts, ≥ 2 rows × 2 cols of short cells | `<table>` | Table with one column, or prose stuffed into cells |
+| Numbers the reader compares across rows, versions or time (before/after, trend, share of a whole) | `<chart>` | A table of numbers the reader must compare mentally; a `<dynamic>` widget for a fixed comparison |
+| A reproducible procedure whose steps carry commands, notes or images | `<steps>` | An `<ol>` with code blocks wedged between items |
 | Two short alternatives viewed side-by-side | `<grid cols="2">` | Grid for content that reads sequentially |
 | Architecture, pipeline, decision tree, timeline | `<excalidraw>` or `<mermaid>` according to complexity and routing needs in `visuals.md` | Decorative schematic; ASCII art in a codeblock |
 | Strict sequence diagram; dense auto-routed flowchart | `<mermaid>` | Excalidraw with 30 hand-placed arrows |
