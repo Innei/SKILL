@@ -114,6 +114,8 @@ Choose per diagram, not per article. A post usually mixes both.
 | Before/after or multi-state panels of the same system | Excalidraw | Panels need aligned, deliberate geometry |
 | Problems annotated on the layer that caused them | Excalidraw | Annotations sit beside the exact layer |
 | Coverage maps, boundary regions, directory before/after | Excalidraw | Regions and grouping are spatial |
+| Product / workflow overview (stages + capability tiles + feedback loop) | Excalidraw | Combines pipeline, capability cards, and bidirectional loop in one glance |
+| 3–4 parallel pitfalls, findings, or before/after rules (2×2 card matrix) | Excalidraw | Breaks dense multi-point prose in the back half of long posts into a scannable comparison board |
 
 Keep one palette across both media (light blue / light green / light
 yellow / light pink, dashed grey for not-built) so colors stay semantic.
@@ -125,11 +127,25 @@ Render every Mermaid source locally before patching:
 ## Authoring rules
 
 - Embed Excalidraw inline as
-  `<excalidraw><![CDATA[{...scene JSON...}]]></excalidraw>`.
+  `<excalidraw><![CDATA[{...scene JSON...}]]></excalidraw>` (or upload via
+  `mxs file upload --type file` when large or when editing through
+  `co-write-blog-post`).
+- Default to Haklex's clean editorial whiteboard look with handwritten typography:
+  `"roughness": 0`, `"fontFamily": 5` (handwritten default; omit `fontFamily`
+  or set `5`, and use `"fontFamily": 2` only when sans-serif is explicitly
+  needed), `"fillStyle": "solid"`, `"roundness": { "type": 3 }` on rectangles
+  and cards, and `"shadow": true` on primary cards.
+- Prefer Haklex `richtext` cards (Lexical root with `h3` + `paragraph`) for
+  multi-line boxes, capability tiles, and before/after comparison cards so
+  text wraps cleanly within a fixed `width` and grows vertically without
+  overflowing borders. Leave conservative vertical spacing (`height` + `y`
+  margin) so auto-grown cards never overlap neighbours or clip outer rects.
+- Author colors for a light background (`"viewBackgroundColor": "#ffffff"`),
+  since the blog renderer inverts whiteboard drawings in dark mode.
 - Use the canonical color palette (light blue / light purple / light yellow /
   light green / light pink).
-- Position text elements explicitly; do not rely on auto-centering across
-  blog renderers.
+- Position standalone `text` elements explicitly with generous `width`
+  estimates; do not rely on auto-centering across blog renderers.
 - Keep the palette subordinate to meaning. Do not assign a new color merely
   to make the scene more varied.
 - Validate that every diagram answers its named question and that no two
